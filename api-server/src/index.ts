@@ -16,8 +16,10 @@ let responseBuffer = "";
 let currentResolve: ((value: string) => void) | null = null;
 let currentReject: ((reason: Error) => void) | null = null;
 
-const LEAN_BACKEND_PATH = path.resolve(__dirname, "../../lean-backend");
-const ELAN_BIN = path.join(os.homedir(), ".elan", "bin");
+const LEAN_BACKEND_PATH = process.env.LEAN_BACKEND_PATH || path.resolve(__dirname, "../../lean-backend");
+const ELAN_BIN = process.env.ELAN_HOME
+  ? path.join(process.env.ELAN_HOME, "bin")
+  : path.join(os.homedir(), ".elan", "bin");
 const LAKE_PATH = path.join(ELAN_BIN, "lake");
 
 function startLeanRepl(): Promise<void> {

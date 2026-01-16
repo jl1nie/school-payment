@@ -80,15 +80,35 @@ theorem deadline_forces_payment
 - **APIサーバー**: Node.js（JSON-RPC通信のプロキシ）
 - **バックエンド**: Lean4（支払い判断ロジック + 定理証明）
 
-## インストール
+## インストール・実行方法
 
-### 前提条件
+### 方法1: Docker（推奨）
+
+Dockerがあれば、他の依存関係のインストールは不要です。
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/jl1nie/school-payment.git
+cd school-payment
+
+# 開発環境を起動
+docker compose up dev
+
+# または本番環境
+docker compose up prod
+```
+
+ブラウザで http://localhost:5173 を開きます。
+
+### 方法2: ローカル環境
+
+#### 前提条件
 
 - [elan](https://github.com/leanprover/elan)（Lean4バージョン管理）
 - Node.js 18+
 - [cargo-make](https://github.com/sagiegurari/cargo-make)（タスクランナー）
 
-### セットアップ
+#### セットアップ
 
 ```bash
 # リポジトリをクローン
@@ -99,9 +119,7 @@ cd school-payment
 makers install
 ```
 
-## 実行方法
-
-### 開発サーバーの起動
+#### 開発サーバーの起動
 
 ```bash
 # 全サービスを並列起動（推奨）
@@ -110,7 +128,7 @@ makers dev
 
 ブラウザで http://localhost:5173 を開きます。
 
-### 個別起動
+#### 個別起動
 
 ```bash
 # フロントエンドのみ
@@ -123,7 +141,7 @@ makers dev-api
 makers dev-lean
 ```
 
-### ビルド
+#### ビルド
 
 ```bash
 # 全プロジェクトをビルド
@@ -133,7 +151,7 @@ makers build
 makers build-lean
 ```
 
-### 利用可能なタスク一覧
+#### 利用可能なタスク一覧
 
 ```bash
 makers

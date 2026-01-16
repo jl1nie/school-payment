@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  # 開発環境（全サービス一体）
+  dev:
+    build:
+      context: .
+      target: development
+    ports:
+      - "3001:3001"   # API Server
+      - "5173:5173"   # Frontend (Vite)
+    volumes:
+      # ソースコードをマウント（ホットリロード用）
+      - ./frontend/src:/app/frontend/src
+      - ./api-server/src:/app/api-server/src
+      - ./lean-backend/src:/app/lean-backend/src
+      - ./lean-backend/Main.lean:/app/lean-backend/Main.lean
+    environment:
+      - NODE_ENV=development
+    stdin_open: true
+    tty: true
+
+  # 本番環境
+  prod:
+    build:
+      context: .
+      target: production
+    ports:
+      - "3001:3001"   # API Server
+      - "5173:5173"   # Static file server
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+
+  # Lean バックエンドのみ（開発・テスト用）
+  lean:
+    build:
+      context: .
+      target: lean-builder
+    working_dir: /app/lean-backend
+    volumes:
+      - ./lean-backend/src:/app/lean-backend/src
+      - ./lean-backend/Main.lean:/app/lean-backend/Main.lean
+    command: ["lake", "exe", "advisor", "--repl"]
+    stdin_open: true
+    tty: true

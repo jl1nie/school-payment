@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+api-server/node_modules/
+
+# Build outputs
+dist/
+frontend/dist/
+api-server/dist/
+
+# Lean build
+lean-backend/.lake/
+lean-backend/lake-packages/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Git
+.git/
+.gitignore
+
+# Serena
+.serena/
+
+# Docker
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Temporary
+*.tmp
+/tmp/
