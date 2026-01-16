@@ -193,11 +193,11 @@ theorem payment_order_correct
   具体的なケースでは Strategy.lean で詳細に扱う。
 -/
 theorem waiting_can_save_money
-    (states : List SchoolState)
-    (targetState : SchoolState)
-    (today : Date)
-    (h_pending : existsHigherPriorityPending states targetState today = true)
-    (h_not_urgent : today.day + 1 ≤ targetState.school.enrollmentFeeDeadline.day) :
+    (_states : List SchoolState)
+    (_targetState : SchoolState)
+    (_today : Date)
+    (_h_pending : existsHigherPriorityPending _states _targetState _today = true)
+    (_h_not_urgent : _today.day + 1 ≤ _targetState.school.enrollmentFeeDeadline.day) :
     -- 待つことで、より優先度の高い学校に受かった場合に
     -- 入学金の支払いを節約できる
     True := by
@@ -254,8 +254,8 @@ def isWastedPayment (state : SchoolState) (enrolled : Option Nat) : Bool :=
   具体的な戦略実装と検証は Strategy.lean で行う。
 -/
 theorem optimal_strategy_minimizes_cost
-    (states : List SchoolState)
-    (today : Date) :
+    (_states : List SchoolState)
+    (_today : Date) :
     -- 最適戦略を適用した場合、不要な支払いを避けられる
     True := by
   trivial
