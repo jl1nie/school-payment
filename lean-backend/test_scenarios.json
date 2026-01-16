@@ -1,0 +1,210 @@
+{
+  "description": "5大学の複雑なテストシナリオ",
+  "baseDate": "2月1日 = Day 1",
+  "universities": [
+    {
+      "id": 1,
+      "name": "東京大学",
+      "priority": 1,
+      "comment": "第一志望。発表が最も遅い",
+      "examDate": 25,
+      "examDateStr": "2/25",
+      "resultDate": 45,
+      "resultDateStr": "3/10（発表最遅）",
+      "enrollmentFeeDeadline": 52,
+      "enrollmentFeeDeadlineStr": "3/17",
+      "tuitionDeadline": 75,
+      "tuitionDeadlineStr": "4/15",
+      "enrollmentFee": 282000,
+      "tuition": 535800
+    },
+    {
+      "id": 2,
+      "name": "早稲田大学",
+      "priority": 2,
+      "comment": "第二志望。入学金期限が東大発表前",
+      "examDate": 12,
+      "examDateStr": "2/12",
+      "resultDate": 22,
+      "resultDateStr": "2/22",
+      "enrollmentFeeDeadline": 38,
+      "enrollmentFeeDeadlineStr": "3/3（東大発表前！）",
+      "tuitionDeadline": 60,
+      "tuitionDeadlineStr": "4/1",
+      "enrollmentFee": 200000,
+      "tuition": 1200000
+    },
+    {
+      "id": 3,
+      "name": "慶應義塾大学",
+      "priority": 3,
+      "comment": "第三志望。発表早いが入学金期限は東大発表後",
+      "examDate": 15,
+      "examDateStr": "2/15",
+      "resultDate": 25,
+      "resultDateStr": "2/25",
+      "enrollmentFeeDeadline": 50,
+      "enrollmentFeeDeadlineStr": "3/15（東大発表後）",
+      "tuitionDeadline": 65,
+      "tuitionDeadlineStr": "4/5",
+      "enrollmentFee": 200000,
+      "tuition": 1300000
+    },
+    {
+      "id": 4,
+      "name": "明治大学",
+      "priority": 4,
+      "comment": "滑り止め上位。入学金期限が早い",
+      "examDate": 5,
+      "examDateStr": "2/5",
+      "resultDate": 12,
+      "resultDateStr": "2/12",
+      "enrollmentFeeDeadline": 28,
+      "enrollmentFeeDeadlineStr": "2/28（最も早い期限）",
+      "tuitionDeadline": 55,
+      "tuitionDeadlineStr": "3/26",
+      "enrollmentFee": 250000,
+      "tuition": 900000
+    },
+    {
+      "id": 5,
+      "name": "法政大学",
+      "priority": 5,
+      "comment": "最終滑り止め。発表・期限とも早い",
+      "examDate": 3,
+      "examDateStr": "2/3",
+      "resultDate": 10,
+      "resultDateStr": "2/10",
+      "enrollmentFeeDeadline": 25,
+      "enrollmentFeeDeadlineStr": "2/25（明治より早い）",
+      "tuitionDeadline": 50,
+      "tuitionDeadlineStr": "3/21",
+      "enrollmentFee": 240000,
+      "tuition": 850000
+    }
+  ],
+  "timeline": [
+    {"day": 3, "event": "法政 受験"},
+    {"day": 5, "event": "明治 受験"},
+    {"day": 10, "event": "法政 発表"},
+    {"day": 12, "event": "早稲田 受験, 明治 発表"},
+    {"day": 15, "event": "慶應 受験"},
+    {"day": 22, "event": "早稲田 発表"},
+    {"day": 25, "event": "慶應 発表, 東大 受験, 【法政 入学金期限】"},
+    {"day": 28, "event": "【明治 入学金期限】"},
+    {"day": 38, "event": "【早稲田 入学金期限】（東大発表前！）"},
+    {"day": 45, "event": "東大 発表"},
+    {"day": 50, "event": "【慶應 入学金期限】, 【法政 授業料期限】"},
+    {"day": 52, "event": "【東大 入学金期限】"},
+    {"day": 55, "event": "【明治 授業料期限】"},
+    {"day": 60, "event": "【早稲田 授業料期限】"},
+    {"day": 65, "event": "【慶應 授業料期限】"},
+    {"day": 75, "event": "【東大 授業料期限】"}
+  ],
+  "testScenarios": [
+    {
+      "name": "シナリオA: Day 25 - 法政の入学金期限日",
+      "today": 25,
+      "states": [
+        {"schoolId": 1, "passStatus": "notYetAnnounced", "comment": "東大: 未発表"},
+        {"schoolId": 2, "passStatus": "passed", "comment": "早稲田: 合格"},
+        {"schoolId": 3, "passStatus": "passed", "comment": "慶應: 合格（本日発表）"},
+        {"schoolId": 4, "passStatus": "passed", "comment": "明治: 合格"},
+        {"schoolId": 5, "passStatus": "passed", "comment": "法政: 合格"}
+      ],
+      "expectedAction": "法政の入学金を払う（期限日のため）",
+      "expectedReason": "上位校の結果待ちだが、法政の期限は今日"
+    },
+    {
+      "name": "シナリオB: Day 28 - 明治の入学金期限日",
+      "today": 28,
+      "states": [
+        {"schoolId": 1, "passStatus": "notYetAnnounced", "comment": "東大: 未発表"},
+        {"schoolId": 2, "passStatus": "passed", "comment": "早稲田: 合格"},
+        {"schoolId": 3, "passStatus": "passed", "comment": "慶應: 合格"},
+        {"schoolId": 4, "passStatus": "passed", "comment": "明治: 合格"},
+        {"schoolId": 5, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "法政: 合格、入学金済"}
+      ],
+      "expectedAction": "明治の入学金を払う（期限日のため）",
+      "expectedReason": "法政の入学金は払った。明治の期限も今日"
+    },
+    {
+      "name": "シナリオC: Day 30 - 待機推奨",
+      "today": 30,
+      "states": [
+        {"schoolId": 1, "passStatus": "notYetAnnounced", "comment": "東大: 未発表"},
+        {"schoolId": 2, "passStatus": "passed", "comment": "早稲田: 合格"},
+        {"schoolId": 3, "passStatus": "passed", "comment": "慶應: 合格"},
+        {"schoolId": 4, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "明治: 合格、入学金済"},
+        {"schoolId": 5, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "法政: 合格、入学金済"}
+      ],
+      "expectedAction": "何もしない",
+      "expectedReason": "東大の結果待ち。早稲田・慶應の入学金期限はまだ先"
+    },
+    {
+      "name": "シナリオD: Day 38 - 早稲田の入学金期限（東大発表前の重要判断）",
+      "today": 38,
+      "states": [
+        {"schoolId": 1, "passStatus": "notYetAnnounced", "comment": "東大: 未発表（発表は45日目）"},
+        {"schoolId": 2, "passStatus": "passed", "comment": "早稲田: 合格"},
+        {"schoolId": 3, "passStatus": "passed", "comment": "慶應: 合格"},
+        {"schoolId": 4, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "明治: 合格、入学金済"},
+        {"schoolId": 5, "passStatus": "cancelled", "comment": "法政: 取り消し（授業料払わず）"}
+      ],
+      "expectedAction": "早稲田の入学金を払う（期限日のため）",
+      "expectedReason": "東大発表前だが、早稲田の入学金期限が今日。払わないと早稲田も失う"
+    },
+    {
+      "name": "シナリオE: Day 46 - 東大合格後",
+      "today": 46,
+      "states": [
+        {"schoolId": 1, "passStatus": "passed", "comment": "東大: 合格！"},
+        {"schoolId": 2, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "早稲田: 合格、入学金済"},
+        {"schoolId": 3, "passStatus": "passed", "comment": "慶應: 合格"},
+        {"schoolId": 4, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "明治: 合格、入学金済"},
+        {"schoolId": 5, "passStatus": "cancelled", "comment": "法政: 取り消し"}
+      ],
+      "expectedAction": "東大の入学金を払う",
+      "expectedReason": "第一志望の東大に合格。迷わず払う"
+    },
+    {
+      "name": "シナリオF: Day 46 - 東大不合格後",
+      "today": 46,
+      "states": [
+        {"schoolId": 1, "passStatus": "failed", "comment": "東大: 不合格"},
+        {"schoolId": 2, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "早稲田: 合格、入学金済"},
+        {"schoolId": 3, "passStatus": "passed", "comment": "慶應: 合格"},
+        {"schoolId": 4, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "明治: 合格、入学金済"},
+        {"schoolId": 5, "passStatus": "cancelled", "comment": "法政: 取り消し"}
+      ],
+      "expectedAction": "早稲田の授業料を払う",
+      "expectedReason": "東大不合格。最上位の早稲田に入学確定"
+    },
+    {
+      "name": "シナリオG: Day 50 - 慶應入学金期限（東大不合格、早稲田も不合格だった場合）",
+      "today": 50,
+      "states": [
+        {"schoolId": 1, "passStatus": "failed", "comment": "東大: 不合格"},
+        {"schoolId": 2, "passStatus": "failed", "comment": "早稲田: 不合格"},
+        {"schoolId": 3, "passStatus": "passed", "comment": "慶應: 合格"},
+        {"schoolId": 4, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "明治: 合格、入学金済"},
+        {"schoolId": 5, "passStatus": "cancelled", "comment": "法政: 取り消し"}
+      ],
+      "expectedAction": "慶應の入学金を払う",
+      "expectedReason": "東大・早稲田が消えた。慶應が最上位になり、期限も今日"
+    },
+    {
+      "name": "シナリオH: 全滅パターン - Day 55",
+      "today": 55,
+      "states": [
+        {"schoolId": 1, "passStatus": "failed", "comment": "東大: 不合格"},
+        {"schoolId": 2, "passStatus": "failed", "comment": "早稲田: 不合格"},
+        {"schoolId": 3, "passStatus": "failed", "comment": "慶應: 不合格"},
+        {"schoolId": 4, "passStatus": "passed", "enrollmentFeePaid": true, "comment": "明治: 合格、入学金済"},
+        {"schoolId": 5, "passStatus": "cancelled", "comment": "法政: 取り消し"}
+      ],
+      "expectedAction": "明治の授業料を払う",
+      "expectedReason": "上位校全滅。明治が最後の砦で、入学確定"
+    }
+  ]
+}

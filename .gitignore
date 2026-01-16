@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+frontend/dist/
+
+# Lean build
+lean-backend/.lake/
+lean-backend/lake-packages/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+/tmp/
+
+# Serena
+.serena/
