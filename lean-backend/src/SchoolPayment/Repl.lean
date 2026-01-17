@@ -278,9 +278,10 @@ def executeGetWeeklyRecommendations (params : GetWeeklyRecommendationsParams) : 
 
   -- 各日の推奨を計算
   let mut dailyRecs : List DailyRecommendation := []
+  let startDate : Date := ⟨params.startDay⟩
   for i in [:params.days] do
-    let day := params.startDay + i
-    let today : Date := ⟨day⟩
+    let today := startDate.addDays i
+    let day := today.day
     let updatedStates := applyDeadlineUpdates schoolStates today
     let topRec := getTopRecommendation updatedStates today
     let allRecs := getAllRecommendations updatedStates today
@@ -296,7 +297,8 @@ def executeGetWeeklyRecommendations (params : GetWeeklyRecommendationsParams) : 
     dailyRecs := dailyRecs ++ [{ day := day, result := result }]
 
   -- 期間内の発表予定を収集（未発表の学校のうち、発表日が期間内のもの）
-  let endDay := params.startDay + params.days - 1
+  let endDate := startDate.addDays (params.days - 1)
+  let endDay := endDate.day
   let upcomingAnnouncements : List UpcomingAnnouncement := schoolStates.filterMap fun s =>
     if s.passStatus == PassStatus.NotYetAnnounced &&
        s.school.resultDate.day ≥ params.startDay &&

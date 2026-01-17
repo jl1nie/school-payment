@@ -6,13 +6,11 @@ import { dayToDate } from "@/lib/date-utils";
 interface WeeklyRecommendationCardProps {
   result: GetWeeklyRecommendationsResult;
   schools: SchoolWithState[];
-  baseYear: number;
 }
 
 export function WeeklyRecommendationCard({
   result,
   schools,
-  baseYear,
 }: WeeklyRecommendationCardProps) {
   const getSchoolName = (schoolId: number | undefined): string => {
     if (schoolId === undefined) return "";
@@ -46,7 +44,7 @@ export function WeeklyRecommendationCard({
   };
 
   const formatDate = (day: number): string => {
-    const date = dayToDate(day, baseYear);
+    const date = dayToDate(day);
     return `${date.getMonth() + 1}/${date.getDate()}(${["日", "月", "火", "水", "木", "金", "土"][date.getDay()]})`;
   };
 
@@ -106,7 +104,6 @@ export function WeeklyRecommendationCard({
               key={rec.day}
               recommendation={rec}
               schools={schools}
-              baseYear={baseYear}
               getActionDescription={getActionDescription}
               formatAmount={formatAmount}
               formatDate={formatDate}
@@ -133,7 +130,6 @@ export function WeeklyRecommendationCard({
 interface DailyCardProps {
   recommendation: DailyRecommendation;
   schools: SchoolWithState[];
-  baseYear: number;
   getActionDescription: (actionType: string, schoolId?: number) => string;
   formatAmount: (schoolId: number | undefined, type: string) => string;
   formatDate: (day: number) => string;

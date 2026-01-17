@@ -38,19 +38,18 @@ let requestId = 0;
 
 /**
  * SchoolWithState 配列を API 形式に変換
- * SchoolWithStateの日付は既にDay番号なので直接使用
+ * 日付はYYYYMMDD形式の整数
  */
 function toApiFormat(
   schools: SchoolWithState[],
-  today: Date,
-  baseYear?: number
+  today: Date
 ): {
   today: number;
   schools: SchoolInput[];
   states: StateInput[];
 } {
   return {
-    today: dateToDay(today, baseYear),
+    today: dateToDay(today),
     schools: schools.map((s) => ({
       id: s.id,
       name: s.name,
@@ -76,10 +75,9 @@ function toApiFormat(
  */
 export async function getRecommendation(
   schools: SchoolWithState[],
-  today: Date,
-  baseYear?: number
+  today: Date
 ): Promise<GetRecommendationResult> {
-  const params = toApiFormat(schools, today, baseYear);
+  const params = toApiFormat(schools, today);
 
   const response = await fetch(`${API_BASE_URL}/rpc`, {
     method: "POST",
@@ -133,10 +131,9 @@ const GetWeeklyRecommendationsResultSchema = z.object({
 export async function getWeeklyRecommendations(
   schools: SchoolWithState[],
   startDate: Date,
-  days: number = 7,
-  baseYear?: number
+  days: number = 7
 ): Promise<GetWeeklyRecommendationsResult> {
-  const startDay = dateToDay(startDate, baseYear);
+  const startDay = dateToDay(startDate);
 
   const response = await fetch(`${API_BASE_URL}/rpc`, {
     method: "POST",

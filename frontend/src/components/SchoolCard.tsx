@@ -8,7 +8,6 @@ import { dayToDate, formatDate } from "@/lib/date-utils";
 interface SchoolCardProps {
   school: SchoolWithState;
   colorIndex?: number;
-  baseYear?: number;
   onUpdatePassStatus: (id: number, status: PassStatus) => void;
   onUpdatePaymentStatus: (
     id: number,
@@ -60,7 +59,6 @@ const PASS_STATUS_CONFIG: Record<
 export function SchoolCard({
   school,
   colorIndex = 0,
-  baseYear,
   onUpdatePassStatus,
   onUpdatePaymentStatus,
   onEdit,
@@ -141,7 +139,7 @@ export function SchoolCard({
               <div>
                 <span className="text-gray-500">受験日</span>
                 <div className="font-medium">
-                  {formatDate(dayToDate(school.examDate, baseYear))}
+                  {formatDate(dayToDate(school.examDate))}
                 </div>
               </div>
             </div>
@@ -150,7 +148,7 @@ export function SchoolCard({
               <div>
                 <span className="text-gray-500">発表日</span>
                 <div className="font-medium">
-                  {formatDate(dayToDate(school.resultDate, baseYear))}
+                  {formatDate(dayToDate(school.resultDate))}
                 </div>
               </div>
             </div>
@@ -159,7 +157,7 @@ export function SchoolCard({
               <div>
                 <span className="text-gray-500">入学金期限</span>
                 <div className="font-medium">
-                  {formatDate(dayToDate(school.enrollmentFeeDeadline, baseYear))}
+                  {formatDate(dayToDate(school.enrollmentFeeDeadline))}
                 </div>
               </div>
             </div>
@@ -168,7 +166,7 @@ export function SchoolCard({
               <div>
                 <span className="text-gray-500">授業料期限</span>
                 <div className="font-medium">
-                  {formatDate(dayToDate(school.tuitionDeadline, baseYear))}
+                  {formatDate(dayToDate(school.tuitionDeadline))}
                 </div>
               </div>
             </div>

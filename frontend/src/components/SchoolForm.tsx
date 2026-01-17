@@ -10,7 +10,6 @@ interface SchoolFormProps {
   school?: SchoolWithState | null;
   nextId: number;
   nextPriority: number;
-  baseYear?: number;
   onSave: (school: SchoolWithState) => void;
   onCancel: () => void;
 }
@@ -30,7 +29,6 @@ export function SchoolForm({
   school,
   nextId,
   nextPriority,
-  baseYear,
   onSave,
   onCancel,
 }: SchoolFormProps) {
@@ -39,17 +37,17 @@ export function SchoolForm({
   const [name, setName] = useState(school?.name ?? "");
   const [priority, setPriority] = useState(school?.priority ?? nextPriority);
   const [examDate, setExamDate] = useState<Date | null>(
-    school ? dayToDate(school.examDate, baseYear) : null
+    school ? dayToDate(school.examDate) : null
   );
   const [resultDate, setResultDate] = useState<Date | null>(
-    school ? dayToDate(school.resultDate, baseYear) : null
+    school ? dayToDate(school.resultDate) : null
   );
   const [enrollmentFeeDeadline, setEnrollmentFeeDeadline] =
     useState<Date | null>(
-      school ? dayToDate(school.enrollmentFeeDeadline, baseYear) : null
+      school ? dayToDate(school.enrollmentFeeDeadline) : null
     );
   const [tuitionDeadline, setTuitionDeadline] = useState<Date | null>(
-    school ? dayToDate(school.tuitionDeadline, baseYear) : null
+    school ? dayToDate(school.tuitionDeadline) : null
   );
   const [enrollmentFee, setEnrollmentFee] = useState(
     school?.enrollmentFee?.toString() ?? ""
@@ -61,16 +59,14 @@ export function SchoolForm({
     if (school) {
       setName(school.name);
       setPriority(school.priority);
-      setExamDate(dayToDate(school.examDate, baseYear));
-      setResultDate(dayToDate(school.resultDate, baseYear));
-      setEnrollmentFeeDeadline(
-        dayToDate(school.enrollmentFeeDeadline, baseYear)
-      );
-      setTuitionDeadline(dayToDate(school.tuitionDeadline, baseYear));
+      setExamDate(dayToDate(school.examDate));
+      setResultDate(dayToDate(school.resultDate));
+      setEnrollmentFeeDeadline(dayToDate(school.enrollmentFeeDeadline));
+      setTuitionDeadline(dayToDate(school.tuitionDeadline));
       setEnrollmentFee(school.enrollmentFee.toString());
       setTuition(school.tuition.toString());
     }
-  }, [school, baseYear]);
+  }, [school]);
 
   const validate = (): boolean => {
     const newErrors: FormErrors = {};
@@ -130,10 +126,10 @@ export function SchoolForm({
       id: school?.id ?? nextId,
       name: name.trim(),
       priority,
-      examDate: dateToDay(examDate!, baseYear),
-      resultDate: dateToDay(resultDate!, baseYear),
-      enrollmentFeeDeadline: dateToDay(enrollmentFeeDeadline!, baseYear),
-      tuitionDeadline: dateToDay(tuitionDeadline!, baseYear),
+      examDate: dateToDay(examDate!),
+      resultDate: dateToDay(resultDate!),
+      enrollmentFeeDeadline: dateToDay(enrollmentFeeDeadline!),
+      tuitionDeadline: dateToDay(tuitionDeadline!),
       enrollmentFee: parseInt(enrollmentFee),
       tuition: parseInt(tuition),
       passStatus: school?.passStatus ?? "notYetAnnounced",

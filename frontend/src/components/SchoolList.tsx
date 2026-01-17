@@ -3,7 +3,6 @@ import type { SchoolWithState, PassStatus } from "@/types";
 
 interface SchoolListProps {
   schools: SchoolWithState[];
-  baseYear?: number;
   onUpdatePassStatus: (id: number, status: PassStatus) => void;
   onUpdatePaymentStatus: (
     id: number,
@@ -15,7 +14,6 @@ interface SchoolListProps {
 
 export function SchoolList({
   schools,
-  baseYear,
   onUpdatePassStatus,
   onUpdatePaymentStatus,
   onEdit,
@@ -42,7 +40,6 @@ export function SchoolList({
           key={school.id}
           school={school}
           colorIndex={index}
-          baseYear={baseYear}
           onUpdatePassStatus={onUpdatePassStatus}
           onUpdatePaymentStatus={onUpdatePaymentStatus}
           onEdit={onEdit}

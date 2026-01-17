@@ -6,7 +6,6 @@ import { dayToDate } from "@/lib/date-utils";
 interface CalendarProps {
   schools: SchoolWithState[];
   today: Date;
-  baseYear?: number;
   selectedMonth?: Date;
   onMonthChange?: (month: Date) => void;
   onDateSelect?: (date: Date) => void;
@@ -45,14 +44,13 @@ const EVENT_ICONS: Record<EventType, { icon: string; label: string }> = {
 export function Calendar({
   schools,
   today,
-  baseYear,
   selectedMonth,
   onMonthChange,
   onDateSelect,
 }: CalendarProps) {
   const currentMonth = selectedMonth || today;
 
-  // イベントを生成
+  // イベントを生成（YYYYMMDD形式の整数からDateに変換）
   const events = useMemo(() => {
     const result: CalendarEvent[] = [];
     schools.forEach((school, index) => {
@@ -68,13 +66,13 @@ export function Calendar({
           schoolId: school.id,
           schoolName: school.name,
           type,
-          date: dayToDate(day, baseYear),
+          date: dayToDate(day),
           colorIndex,
         });
       });
     });
     return result;
-  }, [schools, baseYear]);
+  }, [schools]);
 
   // カレンダーの日付を生成
   const calendarDays = useMemo(() => {

@@ -15,13 +15,13 @@ export const passStatusLabels: Record<PassStatus, string> = {
 
 /**
  * 学校の状態を含む情報（フロントエンド内部用）
- * 日付はDay番号として保持（Leanと同じ形式）
+ * 日付はYYYYMMDD形式の整数（例: 20260225 = 2026年2月25日）
  */
 export interface SchoolWithState {
   id: number;
   name: string;
   priority: number;
-  examDate: number; // Day番号
+  examDate: number; // YYYYMMDD形式
   resultDate: number;
   enrollmentFeeDeadline: number;
   tuitionDeadline: number;
@@ -37,7 +37,7 @@ export interface SchoolInput {
   id: number;
   name: string;
   priority: number;
-  examDate: number; // Day番号
+  examDate: number; // YYYYMMDD形式
   resultDate: number;
   enrollmentFeeDeadline: number;
   tuitionDeadline: number;

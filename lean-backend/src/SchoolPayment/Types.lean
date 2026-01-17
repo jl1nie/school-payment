@@ -18,13 +18,13 @@ namespace SchoolPayment
 /-! ## 基本データ型 -/
 
 /--
-  日付を表す型（簡略化のため整数日数で表現）
+  日付を表す型（YYYYMMDD形式の整数）
 
-  例: 2月1日を Day 1 として、3月10日は Day 38
-  実際のカレンダー日付への変換はフロントエンドで行う
+  例: 2025年2月1日 = 20250201, 2025年3月10日 = 20250310
+  整数の大小比較がそのまま日付の前後関係となる。
 -/
 structure Date where
-  day : Nat
+  day : Nat  -- YYYYMMDD形式（例: 20250201）
 deriving Repr, DecidableEq, Inhabited
 
 /-! ### Date の順序関係 -/
@@ -43,6 +43,48 @@ instance (d1 d2 : Date) : Decidable (d1 ≤ d2) :=
 
 instance (d1 d2 : Date) : Decidable (d1 < d2) :=
   inferInstanceAs (Decidable (d1.day < d2.day))
+
+/-! ### Date のYYYYMMDD形式での日付演算 -/
+
+/-- うるう年判定 -/
+def isLeapYear (year : Nat) : Bool :=
+  (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+
+/-- 各月の日数を取得（うるう年対応） -/
+def daysInMonth (year month : Nat) : Nat :=
+  match month with
+  | 1 => 31
+  | 2 => if isLeapYear year then 29 else 28
+  | 3 => 31  | 4 => 30  | 5 => 31  | 6 => 30
+  | 7 => 31  | 8 => 31  | 9 => 30  | 10 => 31
+  | 11 => 30 | 12 => 31
+  | _ => 30
+
+/-- その年の1月1日から指定月の1日までの日数 -/
+def daysBeforeMonth (year month : Nat) : Nat :=
+  let rec go (m : Nat) (acc : Nat) : Nat :=
+    if m >= month then acc
+    else go (m + 1) (acc + daysInMonth year m)
+  go 1 0
+
+/-- YYYYMMDD形式の日付に1日加算 -/
+def Date.addOneDay (d : Date) : Date :=
+  let year := d.day / 10000
+  let month := (d.day / 100) % 100
+  let day := d.day % 100
+  let maxDay := daysInMonth year month
+  if day < maxDay then
+    ⟨year * 10000 + month * 100 + (day + 1)⟩
+  else if month < 12 then
+    ⟨year * 10000 + (month + 1) * 100 + 1⟩
+  else
+    ⟨(year + 1) * 10000 + 1 * 100 + 1⟩
+
+/-- YYYYMMDD形式の日付にn日加算 -/
+def Date.addDays (d : Date) (n : Nat) : Date :=
+  match n with
+  | 0 => d
+  | n + 1 => (d.addOneDay).addDays n
 
 /--
   金額を表す型（正の整数のみ許容）

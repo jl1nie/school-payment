@@ -6,7 +6,7 @@ export interface UseRecommendationReturn {
   result: GetWeeklyRecommendationsResult | null;
   isLoading: boolean;
   error: string | null;
-  fetchRecommendation: (schools: SchoolWithState[], startDate: Date, baseYear?: number) => Promise<void>;
+  fetchRecommendation: (schools: SchoolWithState[], startDate: Date) => Promise<void>;
   clearResult: () => void;
 }
 
@@ -16,7 +16,7 @@ export function useRecommendation(): UseRecommendationReturn {
   const [error, setError] = useState<string | null>(null);
 
   const fetchRecommendation = useCallback(
-    async (schools: SchoolWithState[], startDate: Date, baseYear?: number) => {
+    async (schools: SchoolWithState[], startDate: Date) => {
       if (schools.length === 0) {
         setError("学校を追加してください");
         return;
@@ -26,7 +26,7 @@ export function useRecommendation(): UseRecommendationReturn {
       setError(null);
 
       try {
-        const data = await getWeeklyRecommendations(schools, startDate, 7, baseYear);
+        const data = await getWeeklyRecommendations(schools, startDate, 7);
         setResult(data);
       } catch (err) {
         const message =

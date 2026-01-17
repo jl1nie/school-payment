@@ -10,8 +10,6 @@ import { useRecommendation } from "@/hooks/useRecommendation";
 import { sampleSchools } from "@/data/sampleData";
 import type { SchoolWithState } from "@/types";
 
-const BASE_YEAR = new Date().getFullYear();
-
 function App() {
   const [today, setToday] = useState<Date>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
@@ -77,7 +75,7 @@ function App() {
   };
 
   const handleGetRecommendation = async () => {
-    await fetchRecommendation(schools, today, BASE_YEAR);
+    await fetchRecommendation(schools, today);
   };
 
   // データエクスポート
@@ -124,7 +122,7 @@ function App() {
     if (
       schools.length === 0 ||
       confirm(
-        "現在のデータを上書きしてサンプルデータを読み込みますか？\n（東大・早稲田・慶應・理科大の2025年度入試データ）"
+        "現在のデータを上書きしてサンプルデータを読み込みますか？\n（東大・早稲田・慶應・明治・東京理科大の2026年度入試データ）"
       )
     ) {
       loadSampleData(sampleSchools);
@@ -155,7 +153,6 @@ function App() {
         <Calendar
           schools={schools}
           today={today}
-          baseYear={BASE_YEAR}
           selectedMonth={calendarMonth}
           onMonthChange={setCalendarMonth}
           onDateSelect={setToday}
@@ -214,7 +211,6 @@ function App() {
             <WeeklyRecommendationCard
               result={recommendation}
               schools={schools}
-              baseYear={BASE_YEAR}
             />
           </div>
         )}
@@ -225,7 +221,6 @@ function App() {
             school={editingSchool}
             nextId={getNextId()}
             nextPriority={getNextPriority()}
-            baseYear={BASE_YEAR}
             onSave={handleSaveSchool}
             onCancel={handleCancelForm}
           />
@@ -243,7 +238,6 @@ function App() {
           </div>
           <SchoolList
             schools={schools}
-            baseYear={BASE_YEAR}
             onUpdatePassStatus={updatePassStatus}
             onUpdatePaymentStatus={updatePaymentStatus}
             onEdit={handleEditSchool}

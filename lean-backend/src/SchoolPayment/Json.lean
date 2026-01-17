@@ -27,7 +27,7 @@ open Lean Json
 
 /-! ## ToJson インスタンス（Lean → JSON）-/
 
-/-- Date は単純に日数（Nat）としてシリアライズ -/
+/-- Date はYYYYMMDD形式の整数としてシリアライズ -/
 instance : ToJson Date where
   toJson d := toJson d.day
 
@@ -118,7 +118,7 @@ instance : ToJson Recommendation where
 
 /-! ## FromJson インスタンス（JSON → Lean）-/
 
-/-- Date のパース（単純な Nat から構築） -/
+/-- Date のパース（YYYYMMDD形式のNatから構築） -/
 instance : FromJson Date where
   fromJson? j := do
     let day ← j.getNat?
