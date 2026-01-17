@@ -248,8 +248,12 @@ function App() {
 
       {/* フッター */}
       <footer className="bg-white border-t mt-12">
-        <div className="max-w-6xl mx-auto px-4 py-4 text-center text-sm text-gray-500">
-          <p>志望校支払いアドバイザー - Lean4形式検証によるビジネスロジック</p>
+        <div className="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-gray-500 space-y-2">
+          <p className="font-medium">志望校支払いアドバイザー - Lean4形式検証によるビジネスロジック</p>
+          <p className="text-xs text-gray-400">
+            【免責事項】本ツールの情報は参考目的であり、実際の支払い判断は各大学の公式情報をご確認ください。
+            本ツールの利用により生じた損害について、開発者は一切の責任を負いません。
+          </p>
         </div>
       </footer>
     </div>
