@@ -190,7 +190,7 @@ function App() {
         {error && (
           <Card className="border-red-300 bg-red-50">
             <CardContent className="pt-6">
-              <p className="text-red-600">{error}</p>
+              <p className="text-red-600 whitespace-pre-line">{error}</p>
             </CardContent>
           </Card>
         )}
