@@ -11,8 +11,17 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  // Tauri 環境変数の処理
+  clearScreen: false,
   server: {
     host: '0.0.0.0',  // コンテナ外からアクセス可能に
     port: 5173,
+    strictPort: true,
+    watch: {
+      // Tauri が使用するため
+      ignored: ['**/src-tauri/**'],
+    },
   },
+  // Tauri ビルド時のベースパス
+  envPrefix: ['VITE_', 'TAURI_'],
 })

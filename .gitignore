@@ -9,6 +9,10 @@ frontend/dist/
 lean-backend/.lake/
 lean-backend/lake-packages/
 
+# Rust build
+target/
+Cargo.lock
+
 # IDE
 .vscode/
 .idea/

@@ -1,7 +1,6 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import type { SchoolWithState, PassStatus } from "@/types";
-
-const STORAGE_KEY = "school-payment-data";
+import { saveSchools, loadSchools } from "@/api/storage";
 
 export interface UseSchoolsReturn {
   schools: SchoolWithState[];
@@ -20,52 +19,53 @@ export interface UseSchoolsReturn {
   exportData: () => string;
   importData: (json: string) => boolean;
   loadSampleData: (sampleSchools: SchoolWithState[]) => void;
-}
-
-/**
- * LocalStorageからデータを読み込み
- */
-function loadFromStorage(): SchoolWithState[] {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const data = JSON.parse(stored);
-      if (Array.isArray(data)) {
-        return data;
-      }
-    }
-  } catch (e) {
-    console.error("Failed to load from localStorage:", e);
-  }
-  return [];
-}
-
-/**
- * LocalStorageにデータを保存
- */
-function saveToStorage(schools: SchoolWithState[]): void {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(schools));
-  } catch (e) {
-    console.error("Failed to save to localStorage:", e);
-  }
+  isLoading: boolean;
 }
 
 export function useSchools(
   initialSchools?: SchoolWithState[]
 ): UseSchoolsReturn {
-  // 初回レンダリング時にLocalStorageから読み込み
-  const [schools, setSchools] = useState<SchoolWithState[]>(() => {
-    if (initialSchools && initialSchools.length > 0) {
-      return initialSchools;
-    }
-    return loadFromStorage();
-  });
+  const [schools, setSchools] = useState<SchoolWithState[]>(
+    initialSchools ?? []
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const isInitialized = useRef(false);
 
-  // schoolsが変更されたらLocalStorageに保存
+  // 初回マウント時にストレージからデータを読み込み
   useEffect(() => {
-    saveToStorage(schools);
-  }, [schools]);
+    if (isInitialized.current) return;
+    isInitialized.current = true;
+
+    // 初期データが渡されている場合はそれを使用
+    if (initialSchools && initialSchools.length > 0) {
+      setIsLoading(false);
+      return;
+    }
+
+    // ストレージからデータを読み込み
+    loadSchools()
+      .then((loaded) => {
+        if (loaded && loaded.length > 0) {
+          setSchools(loaded);
+        }
+      })
+      .catch((e) => {
+        console.error("Failed to load from storage:", e);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [initialSchools]);
+
+  // schoolsが変更されたらストレージに保存
+  useEffect(() => {
+    // 初期化中は保存しない
+    if (isLoading) return;
+
+    saveSchools(schools).catch((e) => {
+      console.error("Failed to save to storage:", e);
+    });
+  }, [schools, isLoading]);
 
   const addSchool = useCallback((school: SchoolWithState) => {
     setSchools((prev) => {
@@ -205,5 +205,6 @@ export function useSchools(
     exportData,
     importData,
     loadSampleData,
+    isLoading,
   };
 }
