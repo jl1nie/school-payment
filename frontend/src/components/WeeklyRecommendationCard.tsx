@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { GetWeeklyRecommendationsResult, SchoolWithState, DailyRecommendation } from "@/types";
+import type { GetWeeklyRecommendationsResult, SchoolWithState, DailyRecommendation, StateUpdate } from "@/types";
 import { dayToDate } from "@/lib/date-utils";
 
 interface WeeklyRecommendationCardProps {
@@ -111,6 +111,7 @@ export function WeeklyRecommendationCard({
               announcements={result.upcomingAnnouncements.filter(
                 (a) => a.resultDay === rec.day
               )}
+              stateUpdates={rec.result.stateUpdates ?? []}
             />
           ))}
         </div>
@@ -135,6 +136,7 @@ interface DailyCardProps {
   formatDate: (day: number) => string;
   isAnnouncementDay: boolean;
   announcements: { schoolId: number; schoolName: string; resultDay: number }[];
+  stateUpdates: StateUpdate[];
 }
 
 function DailyCard({
@@ -144,13 +146,15 @@ function DailyCard({
   formatDate,
   isAnnouncementDay,
   announcements,
+  stateUpdates,
 }: DailyCardProps) {
   const { day, result } = recommendation;
   const { action, reason, urgency } = result;
   const isDoNothing = action.type === "doNothing";
+  const hasStateUpdates = stateUpdates.length > 0;
 
-  // doNothingで発表もない日は省略
-  if (isDoNothing && !isAnnouncementDay) {
+  // doNothingで発表も状態更新もない日は省略
+  if (isDoNothing && !isAnnouncementDay && !hasStateUpdates) {
     return null;
   }
 
@@ -203,6 +207,15 @@ function DailyCard({
           <p className="text-sm text-blue-600 mt-1">
             {announcements.map((a) => a.schoolName).join(", ")}の結果発表日
           </p>
+        )}
+        {hasStateUpdates && (
+          <div className="mt-2 pt-2 border-t border-orange-200">
+            {stateUpdates.map((update, i) => (
+              <p key={i} className="text-sm text-orange-700">
+                ⚠️ {update.schoolName}: {update.reason}
+              </p>
+            ))}
+          </div>
         )}
       </CardContent>
     </Card>

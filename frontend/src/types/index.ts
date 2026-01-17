@@ -66,12 +66,22 @@ export interface Recommendation {
   urgency: number; // 0 = 本日期限
 }
 
+/** 状態更新情報（Lean: StateUpdate） */
+export interface StateUpdate {
+  schoolId: number;
+  schoolName: string;
+  oldStatus: string;
+  newStatus: string;
+  reason: string;
+}
+
 /** getRecommendation レスポンス */
 export interface GetRecommendationResult {
   action: PaymentAction;
   reason: string;
   urgency: number;
   allRecommendations: Recommendation[];
+  stateUpdates?: StateUpdate[];
 }
 
 /** 1日分の推奨アクション（Lean APIレスポンス） */

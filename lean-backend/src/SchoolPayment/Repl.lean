@@ -82,18 +82,40 @@ instance : ToJson JsonRpcResponse where
 /-! ## レスポンス構造体 -/
 
 /--
+  状態更新情報（期限切れによる取り消しなど）
+-/
+structure StateUpdate where
+  schoolId : Nat
+  schoolName : String
+  oldStatus : String
+  newStatus : String
+  reason : String
+deriving Repr
+
+instance : ToJson StateUpdate where
+  toJson u := Json.mkObj [
+    ("schoolId", toJson u.schoolId),
+    ("schoolName", toJson u.schoolName),
+    ("oldStatus", toJson u.oldStatus),
+    ("newStatus", toJson u.newStatus),
+    ("reason", toJson u.reason)
+  ]
+
+/--
   getRecommendation メソッドのレスポンス
 
   - action: 最も推奨されるアクション
   - reason: 推奨理由（ユーザー向けメッセージ）
   - urgency: 緊急度（0が最も緊急）
   - allRecommendations: 全ての推奨アクションのリスト
+  - stateUpdates: 期限切れによる状態更新のリスト
 -/
 structure GetRecommendationResult where
   action : PaymentAction
   reason : String
   urgency : Nat
   allRecommendations : List Recommendation
+  stateUpdates : List StateUpdate := []
 deriving Repr
 
 instance : ToJson GetRecommendationResult where
@@ -101,7 +123,8 @@ instance : ToJson GetRecommendationResult where
     ("action", toJson r.action),
     ("reason", toJson r.reason),
     ("urgency", toJson r.urgency),
-    ("allRecommendations", toJson r.allRecommendations)
+    ("allRecommendations", toJson r.allRecommendations),
+    ("stateUpdates", toJson r.stateUpdates)
   ]
 
 /--
@@ -240,6 +263,39 @@ def buildSchoolStates (schools : Array SchoolInput) (states : Array StateInput) 
 def applyDeadlineUpdates (states : List SchoolState) (today : Date) : List SchoolState :=
   states.map (fun s => updateStatusOnDeadline s today)
 
+/-- PassStatus を文字列に変換 -/
+def passStatusToString : PassStatus → String
+  | .NotYetAnnounced => "notYetAnnounced"
+  | .Passed => "passed"
+  | .Failed => "failed"
+  | .Cancelled => "cancelled"
+
+/--
+  期限切れによる状態変更を検出してStateUpdateリストを生成
+-/
+def detectStateUpdates (before : List SchoolState) (after : List SchoolState) : List StateUpdate :=
+  before.filterMap fun oldState =>
+    match after.find? (fun s => s.school.id == oldState.school.id) with
+    | some newState =>
+      if oldState.passStatus != newState.passStatus then
+        let reason := if newState.passStatus == PassStatus.Cancelled then
+          if oldState.paymentStatus.enrollmentFeePaid then
+            s!"授業料期限（{oldState.school.tuitionDeadline.day}）を過ぎたため取り消し"
+          else
+            s!"入学金期限（{oldState.school.enrollmentFeeDeadline.day}）を過ぎたため取り消し"
+        else
+          "状態が変更されました"
+        some {
+          schoolId := oldState.school.id,
+          schoolName := oldState.school.name,
+          oldStatus := passStatusToString oldState.passStatus,
+          newStatus := passStatusToString newState.passStatus,
+          reason := reason
+        }
+      else
+        none
+    | none => none
+
 /--
   合否状況と発表日の整合性をバリデーション
 
@@ -274,6 +330,8 @@ def executeGetRecommendation (params : GetRecommendationParams) : Except String 
   validatePassStatusTiming schoolStates today
   -- 期限切れの状態更新を適用
   let updatedStates := applyDeadlineUpdates schoolStates today
+  -- 状態変更を検出
+  let stateUpdates := detectStateUpdates schoolStates updatedStates
   -- 推奨アクションを取得
   let topRec := getTopRecommendation updatedStates today
   let allRecs := getAllRecommendations updatedStates today
@@ -281,7 +339,8 @@ def executeGetRecommendation (params : GetRecommendationParams) : Except String 
     action := topRec.action,
     reason := topRec.reason,
     urgency := topRec.urgency,
-    allRecommendations := allRecs
+    allRecommendations := allRecs,
+    stateUpdates := stateUpdates
   }
 
 /--
@@ -305,6 +364,8 @@ def executeGetWeeklyRecommendations (params : GetWeeklyRecommendationsParams) : 
     let today := startDate.addDays i
     let day := today.day
     let updatedStates := applyDeadlineUpdates schoolStates today
+    -- 状態変更を検出
+    let stateUpdates := detectStateUpdates schoolStates updatedStates
     let topRec := getTopRecommendation updatedStates today
     let allRecs := getAllRecommendations updatedStates today
     -- urgencyは基準日（startDay）から見た残り日数に変換
@@ -314,7 +375,8 @@ def executeGetWeeklyRecommendations (params : GetWeeklyRecommendationsParams) : 
       action := topRec.action,
       reason := topRec.reason,
       urgency := urgencyFromBase,
-      allRecommendations := adjustedAllRecs
+      allRecommendations := adjustedAllRecs,
+      stateUpdates := stateUpdates
     }
     dailyRecs := dailyRecs ++ [{ day := day, result := result }]
 
