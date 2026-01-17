@@ -241,6 +241,18 @@ def applyDeadlineUpdates (states : List SchoolState) (today : Date) : List Schoo
   states.map (fun s => updateStatusOnDeadline s today)
 
 /--
+  発表日前に合否が設定されていないかをバリデーション
+
+  発表日より前の日付で Passed/Failed が設定されている場合はエラー。
+-/
+def validatePassStatusTiming (states : List SchoolState) (today : Date) : Except String Unit := do
+  for s in states do
+    if (s.passStatus == PassStatus.Passed || s.passStatus == PassStatus.Failed) &&
+       today.day < s.school.resultDate.day then
+      throw s!"エラー: {s.school.name}の発表日（{s.school.resultDate.day}）より前に合否が設定されています"
+  return ()
+
+/--
   getRecommendation の実行
 
   【処理フロー】
@@ -252,6 +264,8 @@ def applyDeadlineUpdates (states : List SchoolState) (today : Date) : List Schoo
 def executeGetRecommendation (params : GetRecommendationParams) : Except String GetRecommendationResult := do
   let today : Date := ⟨params.today⟩
   let schoolStates ← buildSchoolStates params.schools params.states
+  -- 発表日前の合否設定をバリデーション
+  validatePassStatusTiming schoolStates today
   -- 期限切れの状態更新を適用
   let updatedStates := applyDeadlineUpdates schoolStates today
   -- 推奨アクションを取得
@@ -275,10 +289,12 @@ def executeGetRecommendation (params : GetRecommendationParams) : Except String 
 -/
 def executeGetWeeklyRecommendations (params : GetWeeklyRecommendationsParams) : Except String GetWeeklyRecommendationsResult := do
   let schoolStates ← buildSchoolStates params.schools params.states
+  let startDate : Date := ⟨params.startDay⟩
+  -- 発表日前の合否設定をバリデーション（開始日時点でチェック）
+  validatePassStatusTiming schoolStates startDate
 
   -- 各日の推奨を計算
   let mut dailyRecs : List DailyRecommendation := []
-  let startDate : Date := ⟨params.startDay⟩
   for i in [:params.days] do
     let today := startDate.addDays i
     let day := today.day
