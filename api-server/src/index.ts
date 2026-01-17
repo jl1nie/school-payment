@@ -2,7 +2,6 @@ import express from "express";
 import cors from "cors";
 import { spawn, ChildProcess } from "child_process";
 import path from "path";
-import os from "os";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -17,26 +16,15 @@ let currentResolve: ((value: string) => void) | null = null;
 let currentReject: ((reason: Error) => void) | null = null;
 
 const LEAN_BACKEND_PATH = process.env.LEAN_BACKEND_PATH || path.resolve(__dirname, "../../lean-backend");
-const ELAN_BIN = process.env.ELAN_HOME
-  ? path.join(process.env.ELAN_HOME, "bin")
-  : path.join(os.homedir(), ".elan", "bin");
-const LAKE_PATH = path.join(ELAN_BIN, "lake");
+const ADVISOR_BIN = path.join(LEAN_BACKEND_PATH, ".lake", "build", "bin", "advisor");
 
 function startLeanRepl(): Promise<void> {
   return new Promise((resolve, reject) => {
     console.log("Starting Lean REPL...");
-    console.log("Working directory:", LEAN_BACKEND_PATH);
+    console.log("Binary:", ADVISOR_BIN);
 
-    // elanのPATHを追加してlakeを実行
-    const env = {
-      ...process.env,
-      PATH: `${ELAN_BIN}:${process.env.PATH}`,
-    };
-
-    leanProcess = spawn(LAKE_PATH, ["exe", "advisor", "--repl"], {
-      cwd: LEAN_BACKEND_PATH,
+    leanProcess = spawn(ADVISOR_BIN, ["--repl"], {
       stdio: ["pipe", "pipe", "pipe"],
-      env,
     });
 
     leanProcess.stdout?.on("data", (data: Buffer) => {

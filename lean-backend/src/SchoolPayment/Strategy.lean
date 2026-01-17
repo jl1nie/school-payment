@@ -9,9 +9,10 @@
   その正当性を定理として証明する。
 
   【戦略の核心】
-  1. 入学金は、より優先度の高い学校の結果が全て出るか、期限が来るまで待つ
-  2. 授業料は、その学校に入学することが確定するか、期限が来るまで待つ
-  3. 期限当日は必ず支払う（それ以外に選択肢がない）
+  1. 最上位校に合格したら、すぐに入学金を払う
+  2. 入学金は、より優先度の高い学校の結果が全て出るか、期限が来るまで待つ
+  3. 授業料は、その学校に入学することが確定するか、期限が来るまで待つ
+  4. 期限当日は必ず支払う（それ以外に選択肢がない）
 
   【主要な定理】
   - deadline_forces_payment: 期限日には支払いが強制される
@@ -22,7 +23,7 @@
 
 import SchoolPayment.Types
 import SchoolPayment.Rules
-import Mathlib.Tactic
+import Batteries.Tactic.Init
 
 namespace SchoolPayment
 
@@ -51,20 +52,13 @@ def formatAmount (n : Nat) : String :=
   入学金支払いが必要かどうかを判定
 
   【支払いが必要な条件】
-  1. 合格している
-  2. 入学金未払い
-  3. 期限内
-  4. より優先度の高い学校に「入学可能な合格」がない
+  1. 合格している、入学金未払い、期限内
+  2. より優先度の高い学校に「入学可能な合格」がない
      ※入学可能 = 合格 AND (入学金払い済み OR 入学金期限内)
-  5. 以下のいずれか:
-     a. 今日が期限日（これ以上待てない）
-     b. 上位校が存在し、全て消滅（不合格/取消/入学確定/入学金期限切れ）
-
-  【設計思想】
-  - 上位校に入学可能な合格がある場合、下位校は払わない（期限日でも）
-  - 上位校の入学可能な合格がない場合のみ、期限日または上位校消滅時に払う
-  - 上位校がまだ望みがある（未発表 or 合格して入学金期限内）場合は待機
-  - 最上位校（上位校なし）の場合は、期限日まで待つ（早く払う必要がない）
+  3. 以下のいずれか:
+     a. 上位校がない（第1志望に合格）
+     b. 今日が期限日（これ以上待てない）
+     c. 上位校が全て消滅（不合格/取消/入学確定/入学金期限切れ）
 -/
 def shouldPayEnrollmentFee
     (states : List SchoolState)
@@ -90,22 +84,21 @@ def shouldPayEnrollmentFee
       -- 今日が期限日なら払う（上位校に入学可能な合格がないため）
       let isDeadlineToday := today.day == target.school.enrollmentFeeDeadline.day
 
+      -- 上位校がない場合（第1志望）は、すぐに払う
+      if higherPrioritySchools.isEmpty then true
       -- 期限日なら必ず払う
-      if isDeadlineToday then true
+      else if isDeadlineToday then true
       else
-        -- 上位校が全て「消えた」かどうか（かつ上位校が存在する場合のみ）
+        -- 上位校が全て「消えた」かどうか
         -- 消えた = 不合格 or 取り消し or 入学確定（授業料まで払い済み）
         --       or 合格しているが入学金期限切れ（入学金未払いで期限過ぎ）
-        -- 上位校がない場合は、期限日まで待つ
-        if higherPrioritySchools.isEmpty then false
-        else
-          higherPrioritySchools.all fun s =>
-            s.passStatus == PassStatus.Failed ∨
-            s.passStatus == PassStatus.Cancelled ∨
-            -- 合格していて入学金・授業料まで払い済み（入学確定）
-            (isActivePass s ∧ s.paymentStatus.tuitionPaid) ∨
-            -- 合格しているが入学金期限切れで未払い（もう入学できない）
-            (isActivePass s ∧ ¬s.paymentStatus.enrollmentFeePaid ∧ s.school.enrollmentFeeDeadline.day < today.day)
+        higherPrioritySchools.all fun s =>
+          s.passStatus == PassStatus.Failed ∨
+          s.passStatus == PassStatus.Cancelled ∨
+          -- 合格していて入学金・授業料まで払い済み（入学確定）
+          (isActivePass s ∧ s.paymentStatus.tuitionPaid) ∨
+          -- 合格しているが入学金期限切れで未払い（もう入学できない）
+          (isActivePass s ∧ ¬s.paymentStatus.enrollmentFeePaid ∧ s.school.enrollmentFeeDeadline.day < today.day)
 
 /--
   授業料支払いが必要かどうかを判定
@@ -145,22 +138,50 @@ def shouldPayTuition
 /--
   【定理】期限日で上位校に入学可能な合格がなければ支払いが推奨される
 
-  期限当日で支払い可能な状態で、かつ上位校に入学可能な合格がない場合、
-  shouldPayEnrollmentFee は必ず true を返す。
-  これにより、期限切れによる合格取り消しを防ぐ。
-
-  【注意】
-  上位校に入学可能な合格がある場合は、期限日でも下位校の入学金は払わない。
-  上位校の入学金を先に払うべきだから。
-
   入学可能 = 合格 AND (入学金払い済み OR 入学金期限内)
 
-  【証明戦略】
-  1. shouldPayEnrollmentFee を展開
-  2. h_can_pay により基本条件が満たされていることを利用
-  3. h_no_higher_viable により上位校に入学可能な合格がないことを利用
-  4. h_deadline により isDeadlineToday = true
-  5. ∨ の左側が true なので全体が true
+  ## Lean初心者向け解説
+
+  ### この定理が証明すること
+  「今日が入学金の支払期限で、上位校に入学可能な合格がない場合、
+  shouldPayEnrollmentFee は必ず true を返す」
+
+  ### 仮定（前提条件）の意味
+  - `h_can_pay`: この学校に入学金を払える状態（合格・未払い・期限内）
+  - `h_deadline`: 今日が支払期限当日
+  - `h_no_higher_viable`: 上位校に「入学可能な合格」が1つもない
+
+  ### 証明の流れ
+
+  1. `simp only [shouldPayEnrollmentFee, h_can_pay]`
+     - `shouldPayEnrollmentFee` の定義を展開
+     - `h_can_pay = true` なので最初の if を通過
+
+  2. `have h_not_any : ... = false`
+     - `any` が false であることを示す補助命題を立てる
+     - これは `h_no_higher_viable`（all が true）の対偶
+
+  3. `by_contra h_contra`
+     - 背理法: 「any = false でない」と仮定して矛盾を導く
+
+  4. `have h_any : _ = true := (Bool.not_eq_false _).mp h_contra`
+     - 「false でない」から「true である」を導く
+
+  5. `rw [List.any_eq_true] at h_any`
+     - `any` が true ⟺ 条件を満たす要素が存在する
+
+  6. `obtain ⟨s, hs_mem, hs_viable⟩ := h_any`
+     - 存在する要素 s とその証明を取り出す
+
+  7. `have h_not := List.all_eq_true.mp h_no_higher_viable s hs_mem`
+     - `all` が true なら、s も条件を満たす
+
+  8. `exact h_not (eq_true hs_viable)`
+     - しかし h_not は「s は条件を満たさない」と言っている
+     - これは hs_viable と矛盾 → 背理法完了
+
+  9. `simp_all`
+     - 残りの if 式を h_deadline と h_not_any で簡約
 -/
 theorem deadline_forces_payment
     (states : List SchoolState)
@@ -171,29 +192,18 @@ theorem deadline_forces_payment
     (h_no_higher_viable : (states.filter fun s => s.school.priority.higherThan target.school.priority).all
       fun s => ¬(isActivePass s ∧ (s.paymentStatus.enrollmentFeePaid ∨ s.school.enrollmentFeeDeadline.day ≥ today.day)) = true) :
     shouldPayEnrollmentFee states target today = true := by
-  simp only [shouldPayEnrollmentFee]
-  simp only [h_can_pay]
+  simp only [shouldPayEnrollmentFee, h_can_pay]
   -- 上位校に入学可能な合格がないことを示す
-  have h_not_any : (List.filter (fun s => s.school.priority.higherThan target.school.priority) states).any
-    (fun s => isActivePass s ∧ (s.paymentStatus.enrollmentFeePaid ∨ s.school.enrollmentFeeDeadline.day ≥ today.day)) = false := by
+  have h_not_any : (states.filter fun s => s.school.priority.higherThan target.school.priority).any
+      (fun s => isActivePass s ∧ (s.paymentStatus.enrollmentFeePaid ∨ s.school.enrollmentFeeDeadline.day ≥ today.day)) = false := by
     by_contra h_contra
-    push_neg at h_contra
-    have h_any_true : (List.filter (fun s => s.school.priority.higherThan target.school.priority) states).any
-      (fun s => isActivePass s ∧ (s.paymentStatus.enrollmentFeePaid ∨ s.school.enrollmentFeeDeadline.day ≥ today.day)) = true := Bool.eq_true_of_not_eq_false h_contra
-    rw [List.any_eq_true] at h_any_true
-    obtain ⟨s, hs_mem, hs_viable⟩ := h_any_true
-    have h_all := List.all_eq_true.mp h_no_higher_viable s hs_mem
-    simp only [decide_eq_true_eq] at h_all
-    simp only [decide_eq_true_eq] at hs_viable
-    have hs_eq_true : (isActivePass s = true ∧ (s.paymentStatus.enrollmentFeePaid = true ∨ s.school.enrollmentFeeDeadline.day ≥ today.day)) = True := eq_true hs_viable
-    exact h_all hs_eq_true
-  simp only [h_not_any]
-  -- h_deadline により isDeadlineToday = true
-  simp only [h_deadline, beq_self_eq_true]
-  -- if false = true then false else if true = true then true else ...
-  simp only [Bool.false_eq_true, ↓reduceIte]
-  -- (if ¬True then false else true) = true
-  simp only [not_true_eq_false, ↓reduceIte]
+    have h_any : _ = true := (Bool.not_eq_false _).mp h_contra
+    rw [List.any_eq_true] at h_any
+    obtain ⟨s, hs_mem, hs_viable⟩ := h_any
+    have h_not := List.all_eq_true.mp h_no_higher_viable s hs_mem
+    simp only [decide_eq_true_eq] at h_not hs_viable
+    exact h_not (eq_true hs_viable)
+  simp_all
 
 /--
   【定理】入学金支払いは常に授業料支払いの前提条件
@@ -201,9 +211,25 @@ theorem deadline_forces_payment
   shouldPayTuition が true なら、必ず入学金は支払い済み。
   これは canPayTuition の定義から導かれる。
 
-  【証明戦略】
-  shouldPayTuition の定義を展開し、canPayTuition の条件から
-  enrollmentFeePaid = true を抽出する。
+  ## Lean初心者向け解説
+
+  ### この定理が証明すること
+  「授業料の支払いが推奨されるなら、入学金は既に払い済み」
+  これはビジネスルール「入学金を払わないと授業料は払えない」を形式化している。
+
+  ### 証明の解説
+
+  1. `simp only [shouldPayTuition, canPayTuition, isActivePass] at h`
+     - 関数定義を展開して、h の中身を具体化
+     - `canPayTuition` の定義には `enrollmentFeePaid` の条件が含まれる
+
+  2. `split at h`
+     - `shouldPayTuition` 内の if 式で場合分け
+     - `¬canPayTuition` の場合は h = false で矛盾
+     - `canPayTuition` の場合は `enrollmentFeePaid = true` が含まれる
+
+  3. `simp_all`
+     - 各分岐で仮定を整理し、`enrollmentFeePaid = true` を導出
 -/
 theorem enrollment_before_tuition
     (_states : List SchoolState)
@@ -235,7 +261,8 @@ def daysUntilDeadline (deadline : Date) (today : Date) : Nat :=
 
   【理由メッセージの生成】
   - urgency = 0（期限当日）: 「本日が期限です」
-  - urgency > 0: 「上位校の結果が出ました」
+  - 上位校なし（第一志望）: 「第一志望に合格しました」
+  - それ以外: 「上位校の結果が出ました」
 -/
 def getRecommendationForSchool
     (states : List SchoolState)
@@ -245,9 +272,13 @@ def getRecommendationForSchool
   if shouldPayEnrollmentFee states state today then
     let urgency := daysUntilDeadline state.school.enrollmentFeeDeadline today
     let amountStr := formatAmount state.school.enrollmentFee.value
+    let higherPrioritySchools := states.filter fun s =>
+      s.school.priority.higherThan state.school.priority
     let reason :=
       if urgency == 0 then
         s!"{state.school.name}の入学金支払期限です（¥{amountStr}）。支払わないと合格取り消しになります。"
+      else if higherPrioritySchools.isEmpty then
+        s!"{state.school.name}の入学金（¥{amountStr}）を支払う必要があります。第一志望に合格しました。"
       else
         s!"{state.school.name}の入学金（¥{amountStr}）を支払う必要があります。上位校の結果が全て出ました。"
     some ⟨PaymentAction.PayEnrollmentFee state.school.id, reason, urgency⟩
@@ -303,9 +334,25 @@ def getTopRecommendation
 
   支払いが推奨されるなら、それは実行可能な支払いである。
 
-  【証明戦略】
-  shouldPayEnrollmentFee の定義で、最初に canPayEnrollmentFee をチェックしている。
-  false なら早期リターンするため、true が返るなら canPayEnrollmentFee は true。
+  ## Lean初心者向け解説
+
+  ### この補題の意味
+  「入学金を払うべき」と判定されたら、「入学金を払える状態」である。
+  当たり前に見えるが、この補題があると他の定理の証明が楽になる。
+
+  ### 証明の解説
+
+  1. `simp only [shouldPayEnrollmentFee] at h`
+     - `shouldPayEnrollmentFee` の定義を展開
+     - 最初に `if ¬canPayEnrollmentFee then false` がある
+
+  2. `split at h`
+     - この if で場合分け
+     - `¬canPayEnrollmentFee` なら h = false で矛盾
+     - `canPayEnrollmentFee` なら目標達成
+
+  3. `simp_all`
+     - 二重否定を解消して `canPayEnrollmentFee = true` を導出
 -/
 theorem shouldPayEnrollmentFee_implies_canPay
     (states : List SchoolState)
@@ -320,6 +367,11 @@ theorem shouldPayEnrollmentFee_implies_canPay
   【補題】shouldPayTuition が true なら canPayTuition も true
 
   shouldPayEnrollmentFee_implies_canPay と同様の補題。
+
+  ## Lean初心者向け解説
+
+  証明の構造は `shouldPayEnrollmentFee_implies_canPay` と全く同じ。
+  `shouldPayTuition` も最初に `canPayTuition` をチェックしているため。
 -/
 theorem shouldPayTuition_implies_canPay
     (states : List SchoolState)
@@ -336,15 +388,39 @@ theorem shouldPayTuition_implies_canPay
   getRecommendationForSchool が Some を返す場合、
   そのアクションは canPay* で検証済みである。
 
-  【証明戦略】
-  getRecommendationForSchool の各分岐を検査し、
-  - PayEnrollmentFee の場合: shouldPayEnrollmentFee_implies_canPay を使用
-  - PayTuition の場合: shouldPayTuition_implies_canPay を使用
+  ## Lean初心者向け解説
 
-  【意義】
-  この定理により、システムが推奨する支払いは
-  必ず実行可能であることが保証される。
-  「支払えない支払いを推奨する」バグを型レベルで排除。
+  ### この定理の意義
+  「システムが推奨する支払いは、必ず実行可能である」
+  これにより「払えない支払いを推奨する」バグが型レベルで排除される。
+
+  ### 定理の構造
+  結論は `∧`（かつ）で繋がれた2つの命題:
+  1. アクションが PayEnrollmentFee なら canPayEnrollmentFee = true
+  2. アクションが PayTuition なら canPayTuition = true
+
+  ### 証明の解説
+
+  1. `simp only [getRecommendationForSchool] at h`
+     - 関数定義を展開
+
+  2. `constructor`
+     - `∧` を証明するため、2つの部分に分ける
+
+  3. `intro h_action`
+     - 「→」を証明するため、左辺を仮定に追加
+
+  4. `split at h`
+     - `getRecommendationForSchool` 内の if で場合分け
+     - `shouldPayEnrollmentFee = true` の分岐
+     - `shouldPayTuition = true` の分岐
+     - どちらも false の分岐（h = none で矛盾）
+
+  5. `exact shouldPayEnrollmentFee_implies_canPay ...`
+     - 先に証明した補題を適用
+
+  6. `simp at h_action`
+     - アクションの種類が合わない場合は矛盾を導出
 -/
 theorem recommendation_is_valid
     (states : List SchoolState)
@@ -382,21 +458,48 @@ theorem recommendation_is_valid
 
   入学金期限内かつ授業料期限内であれば、
   updateStatusOnDeadline を適用しても合格状態は維持される。
-  （ただし入学金未払いの場合は除く）
 
-  【前提条件】
-  - h_pass: 現在合格している
-  - h_within_enroll: 今日 ≤ 入学金期限
-  - h_within_tuition: 今日 ≤ 授業料期限
+  ## Lean初心者向け解説
 
-  【結論】
-  更新後も Passed のまま、または入学金が未払い
+  ### この定理の意義
+  「期限内なら、システムが勝手に合格を取り消さない」
+  これは updateStatusOnDeadline 関数の正当性を保証する。
 
-  【証明戦略】
-  updateStatusOnDeadline の各分岐を検査。
-  期限切れ条件は today.day > deadline.day だが、
-  h_within_* により today.day ≤ deadline.day なので
-  期限切れ条件は成り立たない（omega で自動証明）。
+  ### 前提条件の意味
+  - `h_pass`: 現在合格している
+  - `h_within_enroll`: 今日 ≤ 入学金期限
+  - `h_within_tuition`: 今日 ≤ 授業料期限
+
+  ### 結論の意味
+  `(updateStatusOnDeadline state today).passStatus = Passed ∨ enrollmentFeePaid = false`
+  - 更新後も Passed のまま、または
+  - そもそも入学金が未払い（この場合は取り消しが正当）
+
+  ### 証明の解説
+
+  1. `simp only [updateStatusOnDeadline, isActivePass, deadlinePassed, beq_iff_eq] at *`
+     - 関数定義を全て展開
+     - `*` は全ての仮定と目標に適用
+
+  2. `split`
+     - `updateStatusOnDeadline` 内の最初の if で場合分け
+     - 合格している場合としていない場合
+
+  3. `rename_i h_deadline`
+     - 無名の仮定に名前を付ける
+
+  4. `simp only [decide_eq_true_eq] at h_deadline`
+     - `decide` を展開して Bool から Prop へ変換
+
+  5. `omega`
+     - 線形算術ソルバー
+     - `h_within_enroll: today.day ≤ deadline.day` と
+     - `h_deadline: today.day > deadline.day` は矛盾
+     - よってこの分岐は到達不能
+
+  6. `left; exact h_passed`
+     - 期限切れでない場合、状態は変わらない
+     - `∨` の左側（Passed のまま）を証明
 -/
 theorem pass_maintained_within_deadline
     (state : SchoolState)

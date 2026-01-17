@@ -11,4 +11,8 @@ export default defineConfig({
       '@': path.resolve(__dirname, './src'),
     },
   },
+  server: {
+    host: '0.0.0.0',  // コンテナ外からアクセス可能に
+    port: 5173,
+  },
 })

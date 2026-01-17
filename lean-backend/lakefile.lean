@@ -6,8 +6,8 @@ package «school-payment» where
     ⟨`autoImplicit, false⟩
   ]
 
-require mathlib from git
-  "https://github.com/leanprover-community/mathlib4.git"
+require batteries from git
+  "https://github.com/leanprover-community/batteries" @ "main"
 
 lean_lib «SchoolPayment» where
   srcDir := "src"

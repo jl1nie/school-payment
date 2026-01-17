@@ -9,37 +9,45 @@
 ## アーキテクチャ
 
 ```
-┌─────────────────┐     JSON-RPC      ┌─────────────────┐
-│  React Frontend │ ◄──────────────► │  Lean4 REPL     │
-│  (TypeScript)   │                   │  Backend        │
-└─────────────────┘                   └─────────────────┘
-        │                                     │
-        │                                     │
-        ▼                                     ▼
-   ユーザー入力                         定理証明済み
-   - 志望校情報                         ビジネスロジック
+┌─────────────────┐     HTTP/JSON     ┌─────────────────┐     stdio      ┌─────────────────┐
+│  React Frontend │ ◄───────────────► │  Node.js API    │ ◄────────────► │  Lean4 REPL     │
+│  (TypeScript)   │                   │  Server         │                │  (定理証明済み)  │
+└─────────────────┘                   └─────────────────┘                └─────────────────┘
+        │                                     │                                  │
+        ▼                                     ▼                                  ▼
+   ユーザー入力                          JSON-RPC                          定理証明済み
+   - 志望校情報                          プロキシ                          ビジネスロジック
    - 合格状況
    - 現在日付
 ```
 
 ### バックエンド (Lean4 REPL)
 
-- **場所**: `/backend`
-- **技術**: Lean4 + lake
-- **役割**: 
+- **場所**: `/lean-backend`
+- **技術**: Lean4 + lake + Batteries
+- **役割**:
   - 支払い判断ロジック（定理証明済み）
-  - JSON-RPCでフロントエンドと通信
+  - JSON-RPCでAPIサーバーと通信
   - 全ての計算結果に証明が付随
+
+### APIサーバー (Node.js)
+
+- **場所**: `/api-server`
+- **技術**: Node.js + Express + TypeScript
+- **役割**:
+  - フロントエンドとLean REPLの橋渡し
+  - Lean REPLプロセスの管理
+  - CORS対応
 
 ### フロントエンド (React)
 
 - **場所**: `/frontend`
-- **技術**: React + TypeScript + Vite
+- **技術**: React + TypeScript + Vite + Tailwind CSS + shadcn/ui
 - **役割**:
   - 志望校情報の入力UI
   - 合格状況の管理
   - 推奨アクションの表示
-  - タイムライン表示
+  - カレンダーによる日付選択
 
 ## ビジネスルール（絶対に変更不可）
 
@@ -49,7 +57,7 @@
 ```
 授業料支払い → 入学金支払い済みが前提条件
 ```
-**証明**: `tuition_requires_enrollment_fee`
+**証明**: `enrollment_before_tuition`
 
 ### 2. 期限の制約
 ```
@@ -60,11 +68,12 @@
 
 ### 3. 最適戦略
 ```
+第1志望に合格 → 即座に支払い
 より希望順位の高い学校の結果待ち中 → 支払いを遅延
 期限当日 → 必ず支払い
 全上位校が消滅 → 支払い実行
 ```
-**証明**: `deadline_forces_payment`, `waiting_can_save_money`
+**証明**: `deadline_forces_payment`, `pass_maintained_within_deadline`
 
 ### 4. 金額の制約
 ```
@@ -151,10 +160,10 @@ inductive PaymentAction
   "result": {
     "action": {
       "type": "payEnrollmentFee",
-      "schoolId": 3
+      "schoolId": 1
     },
-    "reason": "本日が明治大学の入学金支払期限です。",
-    "urgency": 0,
+    "reason": "東京大学の入学金（¥282,000）を支払う必要があります。第一志望に合格しました。",
+    "urgency": 6,
     "allRecommendations": [...]
   },
   "id": 1
@@ -178,7 +187,8 @@ inductive PaymentAction
    ```bash
    cd lean-backend
    lake build
-   lake exe advisor  # サンプル実行
+   .lake/build/bin/advisor        # デモ実行
+   .lake/build/bin/advisor --repl # REPLモード
    ```
 
 ### Reactコードの変更時
@@ -204,11 +214,16 @@ inductive PaymentAction
 /
 ├── CLAUDE.md                    # このファイル
 ├── README.md                    # プロジェクト概要
+├── Dockerfile                   # マルチステージビルド
+├── docker-compose.yml           # Docker Compose設定
+├── docker-entrypoint.sh         # コンテナ起動スクリプト
+├── Makefile.toml                # cargo-makeタスク定義
 │
 ├── lean-backend/                # Lean4バックエンド（定理証明）
 │   ├── lakefile.lean            # Lakeビルド設定
-│   ├── lean-toolchain           # Lean4バージョン (v4.14.0)
+│   ├── lean-toolchain           # Lean4バージョン
 │   ├── Main.lean                # REPLサーバーエントリポイント
+│   ├── test_scenarios.json      # テストシナリオ定義
 │   └── src/
 │       ├── SchoolPayment.lean   # ライブラリエントリ
 │       └── SchoolPayment/
@@ -228,11 +243,13 @@ inductive PaymentAction
     ├── package.json
     ├── vite.config.ts
     ├── tailwind.config.js
+    ├── components.json          # shadcn/ui設定
     ├── index.html
     └── src/
         ├── App.tsx              # メインアプリケーション
         ├── components/          # UIコンポーネント
         ├── hooks/               # カスタムフック
+        ├── lib/                 # ユーティリティ
         └── types/               # TypeScript型定義
 ```
 
@@ -240,11 +257,12 @@ inductive PaymentAction
 
 | 定理名 | 内容 | ファイル |
 |--------|------|----------|
-| `tuition_requires_enrollment_fee` | 授業料支払いには入学金支払いが必要 | Rules.lean |
 | `deadline_forces_payment` | 期限日には必ず支払いが推奨される | Strategy.lean |
 | `enrollment_before_tuition` | 入学金は常に授業料より先 | Strategy.lean |
 | `recommendation_is_valid` | 推奨される支払いは常に有効 | Strategy.lean |
-| `waiting_can_save_money` | 待つことで費用節約の可能性 | Rules.lean |
+| `pass_maintained_within_deadline` | 期限内なら合格は維持される | Strategy.lean |
+| `shouldPayEnrollmentFee_implies_canPay` | 支払い推奨なら支払い可能 | Strategy.lean |
+| `shouldPayTuition_implies_canPay` | 授業料推奨なら支払い可能 | Strategy.lean |
 
 ## よくある実装ミス
 
@@ -260,73 +278,77 @@ if (today >= deadline) {
 ### ✅ 正しいパターン
 
 ```typescript
-// 常にLean REPLに問い合わせる
-const recommendation = await leanRepl.getRecommendation(today, schools, states);
+// 常にAPIサーバー経由でLean REPLに問い合わせる
+const response = await fetch('/api/recommendation', {
+  method: 'POST',
+  body: JSON.stringify({ today, schools, states })
+});
 ```
 
 ## 環境構築
 
-### バックエンド (Lean4)
+### Docker（推奨）
+
 ```bash
-# elanインストール（初回のみ）
-curl https://raw.githubusercontent.com/leanprover/elan/master/elan-init.sh -sSf | sh
-
-# ビルド
-cd lean-backend
-lake update
-lake build
-
-# REPLサーバー起動
-lake exe advisor
+docker compose up
 ```
 
-### APIサーバー (Node.js)
-```bash
-cd api-server
-npm install
-npm run dev
-```
+ブラウザで http://localhost:5173 を開く。
 
-### フロントエンド (React)
-```bash
-cd frontend
-npm install
-npm run dev
-```
+### ローカル開発（Docker不使用）
 
-### 統合実行（3ターミナル必要）
+#### 前提条件
+
+- [elan](https://github.com/leanprover/elan)（Lean4バージョン管理）
+- Node.js 20+
+- [cargo-make](https://github.com/sagiegurari/cargo-make)（オプション）
+
+#### 手動起動（3ターミナル）
+
 ```bash
-# ターミナル1: Lean REPLサーバー
-cd lean-backend && lake exe advisor --repl
+# ターミナル1: Leanビルド
+cd lean-backend && lake build
 
 # ターミナル2: APIサーバー（ポート3001）
-cd api-server && npm run dev
+cd api-server && npm install && npm run dev
 
 # ターミナル3: フロントエンド（ポート5173）
-cd frontend && npm run dev
+cd frontend && npm install && npm run dev
+```
+
+#### cargo-make使用
+
+```bash
+makers install  # 依存関係インストール
+makers dev      # 全サービス起動
 ```
 
 ## テストシナリオ
 
-### シナリオ1: 期限当日の判断
-- Day 28（明治の入学金期限）
-- 明治: 合格、未払い
-- 早稲田: 合格、未払い
-- 東大: 未発表
-- **期待結果**: 明治の入学金を払う（期限のため）
+詳細は `lean-backend/test_scenarios.json` を参照。
 
-### シナリオ2: 上位校確定後
-- Day 45（東大の入学金期限）
+### シナリオ1: 第1志望合格
 - 東大: 合格、未払い
 - 早稲田: 合格、入学金済み
-- 明治: 合格、入学金済み
-- **期待結果**: 東大の入学金を払う（最上位のため）
+- **期待結果**: 東大の入学金を払う（第1志望に合格したため）
+
+### シナリオ2: 期限当日の判断
+- Day 38（早稲田の入学金期限）
+- 東大: 未発表
+- 早稲田: 合格、未払い
+- **期待結果**: 早稲田の入学金を払う（期限のため）
 
 ### シナリオ3: 待機推奨
 - Day 30
 - 東大: 未発表
-- 早稲田: 合格、未払い（期限: Day 35）
+- 早稲田: 合格、未払い（期限: Day 38）
 - **期待結果**: 何もしない（東大の結果待ち）
+
+### シナリオ4: 上位校不合格後
+- Day 46
+- 東大: 不合格
+- 早稲田: 合格、入学金済み
+- **期待結果**: 早稲田の授業料を払う（上位校が消滅）
 
 ## 注意事項
 
@@ -340,3 +362,7 @@ cd frontend && npm run dev
 3. **証明の`sorry`は絶対に残さない**
    - 本番環境では全ての証明が完了していること
    - CIで`sorry`の有無をチェック
+
+4. **実際の入試日程との整合性**
+   - 早稲田の入学金期限が東大発表前になるケースは実際に発生する
+   - このシステムはそのような状況での最適判断を支援する

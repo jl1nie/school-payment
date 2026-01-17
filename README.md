@@ -22,6 +22,26 @@
 
 Lean4では、コードに対する**数学的証明**を書くことで、**あらゆる入力に対して正しく動作すること**を保証できます。
 
+#### 保証の仕組み
+
+```
+フロントエンド (JSON入力)
+    ↓
+Lean4バックエンド
+    ├─ 入力バリデーション（型制約の検証）
+    │   ├─ 違反 → エラーメッセージを返す
+    │   │   例: "授業料は入学金より高くなければなりません"
+    │   │
+    │   └─ OK → 証明付き型を構築
+    │
+    ↓
+定理証明済みロジック
+    │
+    └─ 正しい結果を返す ← ここが数学的に保証されている
+```
+
+**ポイント**: フロントエンドからのJSONデータは、まずLean4の型制約で検証されます。検証を通過したデータに対しては、定理により正しい結果が保証されます。
+
 #### 例1: 不正なデータを型レベルで排除
 
 ```lean
@@ -31,7 +51,7 @@ structure Amount where
   positive : value > 0  -- ← この証明がないと構築できない
 ```
 
-「入学金0円」のような不正データは、**コンパイル時点でエラー**になります。
+フロントエンドから「入学金0円」のようなデータが来ても、バリデーション時に**エラーとして拒否**されます。
 
 #### 例2: ビジネスルールの不変条件を型に埋め込む
 
@@ -40,26 +60,31 @@ structure Amount where
 structure PaymentStatus where
   enrollmentFeePaid : Bool
   tuitionPaid : Bool
-  -- ↓ この証明により「入学金未払いで授業料だけ払う」状態は構築不可能
+  -- ↓ この制約により「入学金未払いで授業料だけ払う」状態は構築不可能
   tuitionRequiresEnrollment : tuitionPaid = true → enrollmentFeePaid = true
 ```
 
-#### 例3: 期限日には必ず支払い推奨される定理
+もし不正な入力（`enrollmentFeePaid=false, tuitionPaid=true`）が来た場合、システムは安全な状態（`tuitionPaid=false`に補正）にフォールバックします。
+
+#### 例3: アルゴリズムの正しさを証明する定理
 
 ```lean
 /-- 期限日で上位校に入学可能な合格がなければ、支払いが推奨される -/
 theorem deadline_forces_payment
-    (states : List SchoolState)
-    (target : SchoolState)
-    (today : Date)
-    (h_can_pay : canPayEnrollmentFee target today = true)
-    (h_deadline : today.day = target.school.enrollmentFeeDeadline.day)
-    (h_no_higher_viable : ...) :
-    shouldPayEnrollmentFee states target today = true := by
+    (h_can_pay : canPayEnrollmentFee target today = true)  -- 支払い可能
+    (h_deadline : today.day = target.school.enrollmentFeeDeadline.day)  -- 今日が期限
+    (h_no_higher_viable : ...)  -- 上位校に入学可能な合格がない
+    : shouldPayEnrollmentFee states target today = true := by
   -- 証明（省略）
 ```
 
-この定理により、**期限日に支払い推奨を出し忘れることがないこと**が数学的に保証されます。
+**この定理が保証すること:**
+
+「支払い可能」「今日が期限」「上位校に入学可能な合格がない」の3条件が成り立つとき、`shouldPayEnrollmentFee`関数は**必ず**`true`を返す。
+
+つまり、「条件を満たしているのに支払い推奨を出し忘れる」というバグが**論理的に存在しない**ことが証明されています。
+
+**注意**: この定理は「前提条件が満たされれば結論が成り立つ」という形式です。前提条件（合格している、期限内、上位校に入学可能な合格がない等）が満たされない場合の動作は、この定理の対象外です。
 
 ## アーキテクチャ
 
@@ -80,82 +105,45 @@ theorem deadline_forces_payment
 - **APIサーバー**: Node.js（JSON-RPC通信のプロキシ）
 - **バックエンド**: Lean4（支払い判断ロジック + 定理証明）
 
-## インストール・実行方法
+## クイックスタート
 
-### 方法1: Docker（推奨）
-
-Dockerがあれば、他の依存関係のインストールは不要です。
+Dockerがあれば、これだけで動きます:
 
 ```bash
-# リポジトリをクローン
 git clone https://github.com/jl1nie/school-payment.git
 cd school-payment
-
-# 開発環境を起動
-docker compose up dev
-
-# または本番環境
-docker compose up prod
+docker compose up
 ```
 
 ブラウザで http://localhost:5173 を開きます。
 
-### 方法2: ローカル環境
+### ローカル開発（Docker不使用）
+
+<details>
+<summary>クリックして展開</summary>
 
 #### 前提条件
 
 - [elan](https://github.com/leanprover/elan)（Lean4バージョン管理）
-- Node.js 18+
+- Node.js 20+
 - [cargo-make](https://github.com/sagiegurari/cargo-make)（タスクランナー）
 
-#### セットアップ
+#### セットアップと起動
 
 ```bash
-# リポジトリをクローン
-git clone https://github.com/jl1nie/school-payment.git
-cd school-payment
-
-# 依存関係をインストール
-makers install
+makers install  # 依存関係インストール
+makers dev      # 全サービス起動
 ```
 
-#### 開発サーバーの起動
+#### その他のコマンド
 
 ```bash
-# 全サービスを並列起動（推奨）
-makers dev
+makers build       # 全プロジェクトをビルド
+makers build-lean  # Leanのみビルド（証明の検証）
+makers            # 利用可能なタスク一覧
 ```
 
-ブラウザで http://localhost:5173 を開きます。
-
-#### 個別起動
-
-```bash
-# フロントエンドのみ
-makers dev-front
-
-# APIサーバーのみ
-makers dev-api
-
-# Lean REPLのみ
-makers dev-lean
-```
-
-#### ビルド
-
-```bash
-# 全プロジェクトをビルド
-makers build
-
-# Leanのみビルド（証明の検証）
-makers build-lean
-```
-
-#### 利用可能なタスク一覧
-
-```bash
-makers
-```
+</details>
 
 ## 使い方
 
@@ -182,6 +170,7 @@ makers
 4. 上位校に「入学可能な合格」がない
    - 入学可能 = 合格 AND (入学金払い済み OR 入学金期限内)
 5. 以下のいずれか:
+   - 上位校がない（第1志望に合格）
    - 今日が期限日（これ以上待てない）
    - 上位校が全て消滅（不合格/取消/入学確定/入学金期限切れ）
 
@@ -189,10 +178,22 @@ makers
 
 | 状況 | 推奨 |
 |------|------|
-| 東大(1位)合格、早稲田(2位)期限当日 | 何もしない（東大に払えば良い） |
-| 東大(1位)入学金期限切れ、早稲田(2位)期限当日 | 早稲田の入学金を払う |
-| 東大(1位)のみ合格、期限まであと5日 | 何もしない（期限まで待つ） |
-| 東大(1位)のみ合格、期限当日 | 東大の入学金を払う |
+| 東大(1位)のみ合格 | 東大の入学金を払う（第1志望なので即決） |
+| 東大(1位)合格、早稲田(2位)期限当日 | 東大の入学金を払う |
+| 東大(1位)不合格、早稲田(2位)期限当日 | 早稲田の入学金を払う |
+| 東大(1位)未発表、早稲田(2位)期限当日 | 早稲田の入学金を払う（期限のため） |
+| 東大(1位)未発表、早稲田(2位)期限まであと5日 | 何もしない（東大の結果待ち） |
+
+## 免責事項
+
+本ソフトウェアは**教育・研究目的**で作成されたデモンストレーションです。
+
+- 本ソフトウェアの利用により生じた**いかなる損害**（合格取り消し、不要な支払い、その他の金銭的損失を含む）についても、作者は一切の責任を負いません
+- 実際の入学金・授業料の支払い判断は、必ず**各大学の公式情報**を確認し、**ご自身の責任**で行ってください
+- 本ソフトウェアが提示する推奨アクションは、あくまで参考情報です
+- 支払い期限や金額は大学により異なり、年度によって変更される可能性があります
+
+**重要な支払い判断は、必ず大学の入試課や事務局に直接確認してください。**
 
 ## ライセンス
 
