@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/Calendar";
@@ -38,8 +38,14 @@ function App() {
     isLoading,
     error,
     fetchRecommendation,
-    clearResult,
   } = useRecommendation();
+
+  // 日付または学校データが変更されたら自動的に推奨アクションを取得
+  useEffect(() => {
+    if (schools.length > 0) {
+      fetchRecommendation(schools, today);
+    }
+  }, [today, schools]);
 
   const handleAddSchool = () => {
     setEditingSchool(null);
@@ -59,7 +65,6 @@ function App() {
     }
     setShowForm(false);
     setEditingSchool(null);
-    clearResult();
   };
 
   const handleCancelForm = () => {
@@ -70,12 +75,7 @@ function App() {
   const handleDeleteSchool = (id: number) => {
     if (confirm("この学校を削除しますか？")) {
       removeSchool(id);
-      clearResult();
     }
-  };
-
-  const handleGetRecommendation = async () => {
-    await fetchRecommendation(schools, today);
   };
 
   // データエクスポート
@@ -106,7 +106,6 @@ function App() {
       const json = event.target?.result as string;
       if (importData(json)) {
         alert("データをインポートしました");
-        clearResult();
       } else {
         alert("インポートに失敗しました。ファイル形式を確認してください。");
       }
@@ -126,7 +125,6 @@ function App() {
       )
     ) {
       loadSampleData(sampleSchools);
-      clearResult();
     }
   };
 
@@ -158,17 +156,10 @@ function App() {
           onDateSelect={setToday}
         />
 
-        {/* アクションボタン */}
+        {/* データ操作ボタン */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Button
-              size="lg"
-              onClick={handleGetRecommendation}
-              disabled={isLoading || schools.length === 0}
-              className="px-8"
-            >
-              {isLoading ? "取得中..." : "🔍 1週間の推奨アクションを取得"}
-            </Button>
+          <div className="flex items-center gap-2 text-sm text-gray-600">
+            {isLoading && <span>読み込み中...</span>}
           </div>
           <div className="flex items-center gap-2">
             <Button
