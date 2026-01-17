@@ -301,18 +301,23 @@ def detectStateUpdates (before : List SchoolState) (after : List SchoolState) : 
 
   - 発表日より前に Passed/Failed が設定されている場合はエラー
   - 発表日以降に NotYetAnnounced のままの場合はエラー
+  - 全てのエラーを収集して報告
 -/
 def validatePassStatusTiming (states : List SchoolState) (today : Date) : Except String Unit := do
+  let mut errors : List String := []
   for s in states do
     -- 発表日前に合否が設定されている
     if (s.passStatus == PassStatus.Passed || s.passStatus == PassStatus.Failed) &&
        today.day < s.school.resultDate.day then
-      throw s!"エラー: {s.school.name}の発表日（{s.school.resultDate.day}）より前に合否が設定されています"
+      errors := errors ++ [s!"{s.school.name}の発表日（{s.school.resultDate.day}）より前に合否が設定されています"]
     -- 発表日後なのに未発表のまま
     if s.passStatus == PassStatus.NotYetAnnounced &&
        today.day >= s.school.resultDate.day then
-      throw s!"エラー: {s.school.name}の発表日（{s.school.resultDate.day}）を過ぎていますが、合否が入力されていません"
-  return ()
+      errors := errors ++ [s!"{s.school.name}の発表日（{s.school.resultDate.day}）を過ぎていますが、合否が入力されていません"]
+  if errors.isEmpty then
+    return ()
+  else
+    throw s!"エラー:\n{String.intercalate "\n" errors}"
 
 /--
   getRecommendation の実行
