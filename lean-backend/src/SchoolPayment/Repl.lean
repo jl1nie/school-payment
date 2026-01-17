@@ -241,15 +241,21 @@ def applyDeadlineUpdates (states : List SchoolState) (today : Date) : List Schoo
   states.map (fun s => updateStatusOnDeadline s today)
 
 /--
-  発表日前に合否が設定されていないかをバリデーション
+  合否状況と発表日の整合性をバリデーション
 
-  発表日より前の日付で Passed/Failed が設定されている場合はエラー。
+  - 発表日より前に Passed/Failed が設定されている場合はエラー
+  - 発表日以降に NotYetAnnounced のままの場合はエラー
 -/
 def validatePassStatusTiming (states : List SchoolState) (today : Date) : Except String Unit := do
   for s in states do
+    -- 発表日前に合否が設定されている
     if (s.passStatus == PassStatus.Passed || s.passStatus == PassStatus.Failed) &&
        today.day < s.school.resultDate.day then
       throw s!"エラー: {s.school.name}の発表日（{s.school.resultDate.day}）より前に合否が設定されています"
+    -- 発表日後なのに未発表のまま
+    if s.passStatus == PassStatus.NotYetAnnounced &&
+       today.day >= s.school.resultDate.day then
+      throw s!"エラー: {s.school.name}の発表日（{s.school.resultDate.day}）を過ぎていますが、合否が入力されていません"
   return ()
 
 /--
