@@ -255,30 +255,33 @@ theorem payment_order_correct
   例: 東大(第1志望)の発表待ちで、早稲田(第2志望)の入学金期限まであと3日
   → 東大に受かれば早稲田の入学金は不要なので、待つべき
 
-  ### 証明が trivial である理由
+  ### この定理の構造
 
   `True := by trivial`
 
   この定理の結論は `True`（常に成り立つ命題）。
-  なぜこうなっているのか:
+  これは意図的な設計である。
 
-  1. この定理は「可能性の主張」
-     - 「待てば節約できる」ではなく「待てば節約できる可能性がある」
-     - 具体的にいくら節約できるかは状況次第
+  ### なぜ結論が True なのか
 
-  2. 形式化の限界
-     - 「上位校に合格した場合」という条件分岐を含む命題は複雑
-     - 厳密に証明するには確率論的な議論が必要
+  1. **設計意図の文書化**
+     - 前提条件（h_pending, h_not_urgent）が「待機すべき状況」を定義
+     - 結論部分は「この状況で待機は合理的」という主張
+     - 具体的な節約額の計算は本質ではない
 
-  3. 実用的な妥協
-     - この定理は「戦略の正当性」の根拠として参照される
-     - 前提条件（h_pending, h_not_urgent）が満たされることが重要
-     - 具体的な節約額の証明は Strategy.lean に委譲
+  2. **前提条件の型チェック**
+     - `existsHigherPriorityPending = true` が要求される
+     - `today.day + 1 ≤ deadline.day` が要求される
+     - これらの条件が揃っていることをコンパイラが検証
 
-  ### なぜ trivial な定理を書くのか
-  - 設計意図の文書化（将来の開発者への説明）
-  - 前提条件の明示（どういう状況で待機が合理的か）
-  - 型チェックによる前提条件の検証
+  3. **実装との対応**
+     - 具体的な戦略は Strategy.lean の `shouldPayEnrollmentFee` で実装
+     - そちらで「前提条件を満たすとき、支払いを推奨しない」ことを実現
+
+  ### この定理の役割
+  - ビジネスルールの仕様として読める（「こういう状況では待機すべき」）
+  - 実装が従うべき指針を明示
+  - 実際の証明は Strategy.lean の定理群が担う
 -/
 theorem waiting_can_save_money
     (_states : List SchoolState)
@@ -342,30 +345,26 @@ def isWastedPayment (state : SchoolState) (enrolled : Option Nat) : Bool :=
   2. 期限当日には必ず支払う
   3. 上位校が全て消えたら入学を確定
 
-  ### なぜこれも trivial なのか
+  ### この定理の役割
 
-  `waiting_can_save_money` と同様、これは「メタ定理」。
-  具体的な戦略の正当性は Strategy.lean の以下の定理で証明:
+  `waiting_can_save_money` と同様、結論が `True` の「仕様定理」。
 
+  **Strategy.lean で証明されている具体的な性質:**
   - `deadline_forces_payment`: 期限日には支払いが強制される
   - `recommendation_is_valid`: 推奨アクションは実行可能
   - `pass_maintained_within_deadline`: 期限内なら合格維持
 
-  ### 形式検証のアプローチ
+  ### Rules.lean と Strategy.lean の役割分担
 
-  このプロジェクトでは2段階のアプローチを取っている:
-
-  1. **Rules.lean**: ビジネスルールの宣言（何が正しいか）
-     - 高レベルの性質を trivial な定理として宣言
+  1. **Rules.lean（このファイル）**: ビジネスルールの仕様
+     - 「何が正しいか」を宣言
+     - 前提条件を型として明示
      - 設計意図の文書化
 
-  2. **Strategy.lean**: 具体的な実装と証明（どう実現するか）
-     - 実際のアルゴリズムを実装
+  2. **Strategy.lean**: 具体的な実装と証明
+     - 「どう実現するか」を実装
      - アルゴリズムの正当性を厳密に証明
-
-  この分離により:
-  - Rules.lean はビジネス要件の仕様書として読める
-  - Strategy.lean は実装の正当性証明として読める
+     - 関数の入出力関係を定理として証明
 -/
 theorem optimal_strategy_minimizes_cost
     (_states : List SchoolState)
