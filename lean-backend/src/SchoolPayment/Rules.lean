@@ -8,10 +8,12 @@
   証明済みの定理により、実装の正しさを数学的に保証する。
 
   【主要な定理】
-  1. tuition_requires_enrollment_fee: 入学金支払いは授業料支払いの前提条件
-  2. payment_order_correct: 支払い順序の整合性
-  3. waiting_can_save_money: 待機による費用削減の可能性
-  4. optimal_strategy_minimizes_cost: 最適戦略の存在
+  1. tuition_requires_enrollment_fee: 授業料支払い可能なら入学金は支払い済み
+  2. payment_order_correct: 支払い順序の整合性（型制約から導出）
+
+  【仕様定理】（結論が True、前提条件の明示が目的）
+  3. waiting_can_save_money: 待機が合理的な状況の定義
+  4. optimal_strategy_minimizes_cost: 最適戦略の指針
 
   【設計思想】
   - 各ビジネスルールを述語（predicate）として定義
