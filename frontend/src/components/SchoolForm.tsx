@@ -90,15 +90,15 @@ export function SchoolForm({
     }
 
     if (!enrollmentFeeDeadline) {
-      newErrors.enrollmentFeeDeadline = "入学金期限を選択してください";
+      newErrors.enrollmentFeeDeadline = "入学金納付期限を選択してください";
     } else if (resultDate && enrollmentFeeDeadline < resultDate) {
-      newErrors.enrollmentFeeDeadline = "入学金期限は発表日以降にしてください";
+      newErrors.enrollmentFeeDeadline = "入学金納付期限は発表日以降にしてください";
     }
 
     if (!tuitionDeadline) {
-      newErrors.tuitionDeadline = "授業料期限を選択してください";
+      newErrors.tuitionDeadline = "授業料納付期限を選択してください";
     } else if (enrollmentFeeDeadline && tuitionDeadline < enrollmentFeeDeadline) {
-      newErrors.tuitionDeadline = "授業料期限は入学金期限以降にしてください";
+      newErrors.tuitionDeadline = "授業料納付期限は入学金納付期限以降にしてください";
     }
 
     const enrollmentFeeNum = parseInt(enrollmentFee);
@@ -202,7 +202,7 @@ export function SchoolForm({
             </div>
             <div>
               <DatePicker
-                label="入学金期限"
+                label="入学金納付期限"
                 value={enrollmentFeeDeadline}
                 onChange={setEnrollmentFeeDeadline}
               />
@@ -214,7 +214,7 @@ export function SchoolForm({
             </div>
             <div>
               <DatePicker
-                label="授業料期限"
+                label="授業料納付期限"
                 value={tuitionDeadline}
                 onChange={setTuitionDeadline}
               />

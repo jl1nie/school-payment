@@ -1,23 +1,20 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/Calendar";
 import { SchoolList } from "@/components/SchoolList";
-import { SchoolForm } from "@/components/SchoolForm";
 import { WeeklyRecommendationCard } from "@/components/WeeklyRecommendationCard";
 import { useSchools } from "@/hooks/useSchools";
 import { useRecommendation } from "@/hooks/useRecommendation";
 import { sampleSchools } from "@/data/sampleData";
+import { save, open } from "@tauri-apps/plugin-dialog";
+import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
 import type { SchoolWithState } from "@/types";
 
 function App() {
   const [today, setToday] = useState<Date>(new Date());
   const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
-  const [showForm, setShowForm] = useState(false);
-  const [editingSchool, setEditingSchool] = useState<SchoolWithState | null>(
-    null
-  );
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  
 
   const {
     schools,
@@ -51,29 +48,14 @@ function App() {
   // WeeklyRecommendationCardで警告として表示されるので、ユーザーが手動で対応する
   // 自動適用すると、日付を変更してシミュレーションする際に永続的に状態が変わってしまう
 
-  const handleAddSchool = () => {
-    setEditingSchool(null);
-    setShowForm(true);
-  };
-
   const handleEditSchool = (school: SchoolWithState) => {
-    setEditingSchool(school);
-    setShowForm(true);
+    // インライン編集からの直接更新
+    updateSchool(school);
   };
 
-  const handleSaveSchool = (school: SchoolWithState) => {
-    if (editingSchool) {
-      updateSchool(school);
-    } else {
-      addSchool(school);
-    }
-    setShowForm(false);
-    setEditingSchool(null);
-  };
-
-  const handleCancelForm = () => {
-    setShowForm(false);
-    setEditingSchool(null);
+  const handleAddSchool = (school: SchoolWithState) => {
+    // インライン追加からの直接追加
+    addSchool(school);
   };
 
   const handleDeleteSchool = (id: number) => {
@@ -83,41 +65,46 @@ function App() {
   };
 
   // データエクスポート
-  const handleExport = () => {
-    const json = exportData();
-    const blob = new Blob([json], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `school-payment-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleExport = async () => {
+    try {
+      const json = exportData();
+      const defaultName = `school-payment-backup-${new Date().toISOString().slice(0, 10)}.json`;
+
+      const filePath = await save({
+        defaultPath: defaultName,
+        filters: [{ name: "JSON", extensions: ["json"] }],
+      });
+
+      if (filePath) {
+        await writeTextFile(filePath, json);
+        alert("データをエクスポートしました");
+      }
+    } catch (e) {
+      console.error("Export error:", e);
+      alert("エクスポートに失敗しました: " + String(e));
+    }
   };
 
   // データインポート
-  const handleImportClick = () => {
-    fileInputRef.current?.click();
-  };
+  const handleImportClick = async () => {
+    try {
+      const filePath = await open({
+        filters: [{ name: "JSON", extensions: ["json"] }],
+        multiple: false,
+      });
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const json = event.target?.result as string;
-      if (importData(json)) {
-        alert("データをインポートしました");
-      } else {
-        alert("インポートに失敗しました。ファイル形式を確認してください。");
+      if (filePath && typeof filePath === "string") {
+        const json = await readTextFile(filePath);
+        if (importData(json)) {
+          alert("データをインポートしました");
+        } else {
+          alert("インポートに失敗しました。ファイル形式を確認してください。");
+        }
       }
-    };
-    reader.readAsText(file);
-
-    // 同じファイルを再選択できるようにリセット
-    e.target.value = "";
+    } catch (e) {
+      console.error("Import error:", e);
+      alert("インポートに失敗しました: " + String(e));
+    }
   };
 
   // サンプルデータを読み込み
@@ -180,13 +167,6 @@ function App() {
             <Button variant="outline" size="sm" onClick={handleLoadSample}>
               📝 サンプル
             </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json"
-              onChange={handleFileChange}
-              className="hidden"
-            />
           </div>
         </div>
 
@@ -211,32 +191,18 @@ function App() {
         )}
 
         {/* 学校フォーム（モーダル的に表示） */}
-        {showForm && (
-          <SchoolForm
-            school={editingSchool}
-            nextId={getNextId()}
-            nextPriority={getNextPriority()}
-            onSave={handleSaveSchool}
-            onCancel={handleCancelForm}
-          />
-        )}
-
         {/* 志望校一覧 */}
         <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold">🏫 志望校一覧</h2>
-            {!showForm && (
-              <Button variant="outline" onClick={handleAddSchool}>
-                ＋ 学校を追加
-              </Button>
-            )}
-          </div>
+          <h2 className="text-lg font-semibold mb-4">🏫 志望校一覧</h2>
           <SchoolList
             schools={schools}
             onUpdatePassStatus={updatePassStatus}
             onUpdatePaymentStatus={updatePaymentStatus}
             onEdit={handleEditSchool}
             onDelete={handleDeleteSchool}
+            onAdd={handleAddSchool}
+            nextId={getNextId()}
+            nextPriority={getNextPriority()}
           />
         </div>
       </main>
@@ -244,7 +210,14 @@ function App() {
       {/* フッター */}
       <footer className="bg-white border-t mt-12">
         <div className="max-w-6xl mx-auto px-4 py-6 text-center text-sm text-gray-500 space-y-2">
-          <p className="font-medium">志望校支払いアドバイザー - Lean4形式検証によるビジネスロジック</p>
+          <a
+            href="https://github.com/jl1nie/school-payment"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium hover:text-blue-600 hover:underline"
+          >
+            志望校支払いアドバイザー - Lean4形式検証によるビジネスロジック
+          </a>
           <p className="text-xs text-gray-400">
             【免責事項】本ツールの情報は参考目的であり、実際の支払い判断は各大学の公式情報をご確認ください。
             本ツールの利用により生じた損害について、開発者は一切の責任を負いません。

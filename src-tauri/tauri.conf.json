@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.school-payment.app",
   "build": {
-    "beforeDevCommand": "",
+    "beforeDevCommand": "powershell -Command \"cd ../frontend; npm run dev\"",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "",
+    "beforeBuildCommand": "powershell -Command \"cd ../frontend; npm run build\"",
     "frontendDist": "../frontend/dist"
   },
   "app": {

@@ -37,8 +37,8 @@ interface CalendarEvent {
 const EVENT_ICONS: Record<EventType, { icon: string; label: string }> = {
   exam: { icon: "★", label: "受験日" },
   result: { icon: "○", label: "発表日" },
-  enrollmentFee: { icon: "◎", label: "入学金期限" },
-  tuition: { icon: "▲", label: "授業料期限" },
+  enrollmentFee: { icon: "◎", label: "入学金納付期限" },
+  tuition: { icon: "▲", label: "授業料納付期限" },
 };
 
 export function Calendar({
@@ -163,11 +163,11 @@ export function Calendar({
           </div>
           <div className="flex items-center gap-1">
             <span className="font-bold">◎</span>
-            <span>入学金期限</span>
+            <span>入学金納付期限</span>
           </div>
           <div className="flex items-center gap-1">
             <span className="font-bold">▲</span>
-            <span>授業料期限</span>
+            <span>授業料納付期限</span>
           </div>
         </div>
 
