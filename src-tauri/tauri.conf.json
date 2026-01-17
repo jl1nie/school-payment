@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "identifier": "com.school-payment.app",
   "build": {
-    "beforeDevCommand": "cd ../frontend && npm run dev",
+    "beforeDevCommand": "",
     "devUrl": "http://localhost:5173",
-    "beforeBuildCommand": "cd ../frontend && npm run build",
+    "beforeBuildCommand": "",
     "frontendDist": "../frontend/dist"
   },
   "app": {
@@ -15,7 +15,7 @@
       {
         "title": "志望校支払いアドバイザー",
         "width": 1200,
-        "height": 800,
+        "height": 1000,
         "resizable": true,
         "fullscreen": false,
         "center": true
@@ -35,9 +35,9 @@
       "icons/icon.icns",
       "icons/icon.ico"
     ],
-    "resources": [
-      "../lean-backend/.lake/build/bin/advisor"
-    ],
+    "resources": {
+      "../lean-backend/.lake/build/bin/advisor.exe": "advisor.exe"
+    },
     "linux": {
       "appimage": {
         "bundleMediaFramework": false

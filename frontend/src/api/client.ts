@@ -48,11 +48,20 @@ const RecommendationSchema = z.object({
   urgency: z.number(),
 });
 
+const StateUpdateSchema = z.object({
+  schoolId: z.number(),
+  schoolName: z.string(),
+  oldStatus: z.string(),
+  newStatus: z.string(),
+  reason: z.string(),
+});
+
 const GetRecommendationResultSchema = z.object({
   action: PaymentActionSchema,
   reason: z.string(),
   urgency: z.number(),
   allRecommendations: z.array(RecommendationSchema),
+  stateUpdates: z.array(StateUpdateSchema).optional(),
 });
 
 let requestId = 0;

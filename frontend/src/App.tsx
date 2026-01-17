@@ -47,6 +47,10 @@ function App() {
     }
   }, [today, schools]);
 
+  // 注意: stateUpdates（期限切れによるキャンセルなど）は自動適用しない
+  // WeeklyRecommendationCardで警告として表示されるので、ユーザーが手動で対応する
+  // 自動適用すると、日付を変更してシミュレーションする際に永続的に状態が変わってしまう
+
   const handleAddSchool = () => {
     setEditingSchool(null);
     setShowForm(true);

@@ -237,6 +237,22 @@ instance : Inhabited PaymentStatus :=
   ⟨{ enrollmentFeePaid := false, tuitionPaid := false, tuitionRequiresEnrollment := by intro h; cases h }⟩
 
 /--
+  PaymentStatus の安全なコンストラクタ
+
+  enrollmentFeePaid と tuitionPaid から証明付きの PaymentStatus を構築する。
+  不正な組み合わせ（入学金未払いで授業料済み）の場合は入学金も済みに修正。
+-/
+def mkPaymentStatus (enrollmentFeePaid tuitionPaid : Bool) : PaymentStatus :=
+  -- 授業料が支払われているなら、入学金も支払われているはず
+  let actualEnrollmentFeePaid := enrollmentFeePaid || tuitionPaid
+  { enrollmentFeePaid := actualEnrollmentFeePaid,
+    tuitionPaid := tuitionPaid,
+    tuitionRequiresEnrollment := by
+      intro h
+      simp only [actualEnrollmentFeePaid]
+      cases tuitionPaid <;> simp_all }
+
+/--
   学校の現在の状態を表す構造体
 
   School（静的情報）と動的な状態（合格・支払い状況）を組み合わせる

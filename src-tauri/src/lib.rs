@@ -27,10 +27,11 @@ fn get_advisor_path(#[allow(unused)] app: &tauri::AppHandle) -> PathBuf {
     #[cfg(not(debug_assertions))]
     {
         // Production: use bundled resource
+        let advisor_name = if cfg!(windows) { "advisor.exe" } else { "advisor" };
         app.path()
             .resource_dir()
             .expect("Failed to get resource directory")
-            .join("advisor")
+            .join(advisor_name)
     }
 }
 

@@ -71,7 +71,8 @@ export function SchoolCard({
   const color = SCHOOL_COLORS[colorIndex % SCHOOL_COLORS.length];
 
   const handlePassStatusClick = (status: PassStatus) => {
-    if (!isCancelled && status !== "cancelled") {
+    // 取り消し状態でも変更可能（日程変更などで復帰できるように）
+    if (status !== "cancelled") {
       onUpdatePassStatus(school.id, status);
     }
   };
@@ -117,10 +118,9 @@ export function SchoolCard({
                   <button
                     key={status}
                     onClick={() => handlePassStatusClick(status)}
-                    disabled={isCancelled}
                     className={`px-4 py-2 rounded-lg border-2 font-medium transition-all ${
                       isActive ? config.activeClassName : config.className
-                    } ${isCancelled ? "cursor-not-allowed opacity-50" : ""}`}
+                    }`}
                   >
                     {config.label}
                   </button>

@@ -327,6 +327,100 @@ def getTopRecommendation
   | [] => ⟨PaymentAction.DoNothing, "現時点で支払いが必要な学校はありません。", 999⟩
   | r :: _ => r
 
+/-! ## 推奨アクションの適用 -/
+
+/--
+  推奨アクションを状態に反映する
+
+  【処理】
+  - PayEnrollmentFee → 対象学校の入学金を支払い済みに
+  - PayTuition → 対象学校の授業料を支払い済みに（入学金も true に）
+  - DoNothing → 変更なし
+
+  【用途】
+  週間推奨計算で、推奨アクションを実行した後の状態をシミュレートする際に使用。
+-/
+def applyRecommendedAction (states : List SchoolState) (action : PaymentAction) : List SchoolState :=
+  match action with
+  | .PayEnrollmentFee schoolId =>
+    states.map fun s =>
+      if s.school.id == schoolId then
+        { s with paymentStatus := mkPaymentStatus true s.paymentStatus.tuitionPaid }
+      else s
+  | .PayTuition schoolId =>
+    states.map fun s =>
+      if s.school.id == schoolId then
+        { s with paymentStatus := mkPaymentStatus true true }
+      else s
+  | .DoNothing => states
+
+/--
+  【定理】applyRecommendedAction は入学金支払いを正しく反映する
+
+  PayEnrollmentFee アクションを適用した後、対象学校の enrollmentFeePaid は true になる。
+
+  ## Lean初心者向け解説
+
+  ### この定理の意義
+  「入学金支払い推奨を適用したら、確実にその学校の入学金が支払い済みになる」
+  これにより、週間推奨の累積計算が正しく動作することが保証される。
+
+  ### 証明の解説
+  1. `simp only [applyRecommendedAction, List.mem_map]`
+     - 関数定義と List.map の性質を展開
+  2. `obtain ⟨original, h_orig_mem, h_eq⟩ := h_mem`
+     - s が元リストのある要素から変換されたことを取り出す
+  3. 場合分けで、対象学校なら true、そうでなければ仮定を使う
+-/
+theorem applyRecommendedAction_enrollmentFee_correct
+    (states : List SchoolState)
+    (schoolId : Nat)
+    (s : SchoolState)
+    (h_mem : s ∈ applyRecommendedAction states (.PayEnrollmentFee schoolId))
+    (h_id : s.school.id = schoolId) :
+    s.paymentStatus.enrollmentFeePaid = true := by
+  simp only [applyRecommendedAction, List.mem_map] at h_mem
+  obtain ⟨original, h_orig_mem, h_eq⟩ := h_mem
+  simp only [beq_iff_eq] at h_eq
+  split at h_eq
+  · -- original.school.id = schoolId の場合
+    rw [← h_eq]
+    simp [mkPaymentStatus]
+  · -- original.school.id ≠ schoolId の場合
+    rw [← h_eq] at h_id
+    rename_i h_ne
+    exact absurd h_id h_ne
+
+/--
+  【定理】applyRecommendedAction は授業料支払いを正しく反映する
+
+  PayTuition アクションを適用した後、対象学校の tuitionPaid は true になる。
+-/
+theorem applyRecommendedAction_tuition_correct
+    (states : List SchoolState)
+    (schoolId : Nat)
+    (s : SchoolState)
+    (h_mem : s ∈ applyRecommendedAction states (.PayTuition schoolId))
+    (h_id : s.school.id = schoolId) :
+    s.paymentStatus.tuitionPaid = true := by
+  simp only [applyRecommendedAction, List.mem_map] at h_mem
+  obtain ⟨original, h_orig_mem, h_eq⟩ := h_mem
+  simp only [beq_iff_eq] at h_eq
+  split at h_eq
+  · rw [← h_eq]
+    simp [mkPaymentStatus]
+  · rw [← h_eq] at h_id
+    rename_i h_ne
+    exact absurd h_id h_ne
+
+/--
+  【定理】DoNothing は状態を変更しない
+-/
+theorem applyRecommendedAction_doNothing
+    (states : List SchoolState) :
+    applyRecommendedAction states .DoNothing = states := by
+  simp [applyRecommendedAction]
+
 /-! ## 正当性の証明 -/
 
 /--

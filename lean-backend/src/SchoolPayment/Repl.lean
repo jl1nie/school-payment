@@ -272,26 +272,53 @@ def passStatusToString : PassStatus → String
 
 /--
   期限切れによる状態変更を検出してStateUpdateリストを生成
+
+  【上位校フィルタ】
+  上位の学校に「有効な合格」（Passed で入学金支払い済み or 期限内）がある場合、
+  下位校のキャンセル警告はスキップする。
+  理由: 上位校への入学が確定すれば、下位校のキャンセルは問題にならないため。
+
+  【安全性の保証】
+  Strategy.lean の deadline_forces_payment 定理により、
+  支払いが必要な学校は期限日までに必ず推奨される。
+  applyRecommendedAction_* 定理により、推奨は正しく適用される。
+  よって、上位校が支払い推奨を受けた場合は必ずユーザーに通知される。
 -/
 def detectStateUpdates (before : List SchoolState) (after : List SchoolState) : List StateUpdate :=
   before.filterMap fun oldState =>
     match after.find? (fun s => s.school.id == oldState.school.id) with
     | some newState =>
       if oldState.passStatus != newState.passStatus then
-        let reason := if newState.passStatus == PassStatus.Cancelled then
-          if oldState.paymentStatus.enrollmentFeePaid then
-            s!"授業料期限（{oldState.school.tuitionDeadline.day}）を過ぎたため取り消し"
+        -- 取り消しの場合、上位校に有効な合格があればスキップ
+        if newState.passStatus == PassStatus.Cancelled then
+          -- 上位校に「有効な合格」があるかチェック
+          -- 有効な合格 = Passed AND (入学金払い済み OR 入学金期限内)
+          let hasHigherViable := after.any fun s =>
+            s.school.priority.higherThan oldState.school.priority ∧
+            isActivePass s ∧
+            (s.paymentStatus.enrollmentFeePaid ∨ s.school.enrollmentFeeDeadline.day ≥ newState.school.enrollmentFeeDeadline.day)
+          if hasHigherViable then
+            none  -- 上位校があるのでこの警告はスキップ
           else
-            s!"入学金期限（{oldState.school.enrollmentFeeDeadline.day}）を過ぎたため取り消し"
+            let reason := if oldState.paymentStatus.enrollmentFeePaid then
+              s!"授業料期限（{oldState.school.tuitionDeadline.day}）を過ぎたため取り消し"
+            else
+              s!"入学金期限（{oldState.school.enrollmentFeeDeadline.day}）を過ぎたため取り消し"
+            some {
+              schoolId := oldState.school.id,
+              schoolName := oldState.school.name,
+              oldStatus := passStatusToString oldState.passStatus,
+              newStatus := passStatusToString newState.passStatus,
+              reason := reason
+            }
         else
-          "状態が変更されました"
-        some {
-          schoolId := oldState.school.id,
-          schoolName := oldState.school.name,
-          oldStatus := passStatusToString oldState.passStatus,
-          newStatus := passStatusToString newState.passStatus,
-          reason := reason
-        }
+          some {
+            schoolId := oldState.school.id,
+            schoolName := oldState.school.name,
+            oldStatus := passStatusToString oldState.passStatus,
+            newStatus := passStatusToString newState.passStatus,
+            reason := "状態が変更されました"
+          }
       else
         none
     | none => none
@@ -348,12 +375,14 @@ def executeGetRecommendation (params : GetRecommendationParams) : Except String 
     stateUpdates := stateUpdates
   }
 
+-- applyRecommendedAction は Strategy.lean で定義（定理付き）
+
 /--
   getWeeklyRecommendations の実行
 
   【処理フロー】
   1. パラメータから SchoolState リストを構築
-  2. 各日について推奨アクションを計算
+  2. 各日について推奨アクションを計算（推奨アクション実行を仮定して累積）
   3. 期間内の発表予定を収集
   4. 結果を返す
 -/
@@ -364,13 +393,21 @@ def executeGetWeeklyRecommendations (params : GetWeeklyRecommendationsParams) : 
   validatePassStatusTiming schoolStates startDate
 
   -- 各日の推奨を計算
+  -- 推奨アクションを実行した後の状態で翌日以降を計算
   let mut dailyRecs : List DailyRecommendation := []
+  let mut currentStates := schoolStates  -- 累積状態
+  let mut reportedSchoolIds : List Nat := []
   for i in [:params.days] do
     let today := startDate.addDays i
     let day := today.day
-    let updatedStates := applyDeadlineUpdates schoolStates today
-    -- 状態変更を検出
-    let stateUpdates := detectStateUpdates schoolStates updatedStates
+    -- 期限切れを適用
+    let updatedStates := applyDeadlineUpdates currentStates today
+    -- 状態変更を検出（元の状態と比較）
+    let allStateUpdates := detectStateUpdates currentStates updatedStates
+    -- 新規発生分のみをフィルタ（前日までに報告済みでない学校）
+    let newStateUpdates := allStateUpdates.filter fun u => !reportedSchoolIds.contains u.schoolId
+    -- 報告済みリストを更新
+    reportedSchoolIds := reportedSchoolIds ++ (newStateUpdates.map fun u => u.schoolId)
     let topRec := getTopRecommendation updatedStates today
     let allRecs := getAllRecommendations updatedStates today
     -- urgencyは基準日（startDay）から見た残り日数に変換
@@ -381,9 +418,11 @@ def executeGetWeeklyRecommendations (params : GetWeeklyRecommendationsParams) : 
       reason := topRec.reason,
       urgency := urgencyFromBase,
       allRecommendations := adjustedAllRecs,
-      stateUpdates := stateUpdates
+      stateUpdates := newStateUpdates
     }
     dailyRecs := dailyRecs ++ [{ day := day, result := result }]
+    -- 推奨アクションを反映して次の日の状態を更新
+    currentStates := applyRecommendedAction updatedStates topRec.action
 
   -- 期間内の発表予定を収集（未発表の学校のうち、発表日が期間内のもの）
   let endDate := startDate.addDays (params.days - 1)

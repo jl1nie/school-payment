@@ -66,58 +66,81 @@ structure PaymentStatus where
 
 もし不正な入力（`enrollmentFeePaid=false, tuitionPaid=true`）が来た場合、システムは安全な状態（`tuitionPaid=false`に補正）にフォールバックします。
 
-#### 例3: アルゴリズムの正しさを証明する定理
+#### 例3: 定理の連鎖による安全性保証
+
+Leanの真価は、複数の定理を組み合わせて**システム全体の安全性**を証明できることです。
 
 ```lean
-/-- 期限日で上位校に入学可能な合格がなければ、支払いが推奨される -/
+-- 定理1: 期限日には必ず支払いが推奨される
 theorem deadline_forces_payment
-    (h_can_pay : canPayEnrollmentFee target today = true)  -- 支払い可能
-    (h_deadline : today.day = target.school.enrollmentFeeDeadline.day)  -- 今日が期限
-    (h_no_higher_viable : ...)  -- 上位校に入学可能な合格がない
-    : shouldPayEnrollmentFee states target today = true := by
-  -- 証明（省略）
+    (h_can_pay : canPayEnrollmentFee target today = true)
+    (h_deadline : today.day = target.school.enrollmentFeeDeadline.day)
+    (h_no_higher_viable : ...)
+    : shouldPayEnrollmentFee states target today = true := by ...
+
+-- 定理2: 推奨された支払いは正しく状態に反映される
+theorem applyRecommendedAction_enrollmentFee_correct
+    (h_mem : s ∈ applyRecommendedAction states (.PayEnrollmentFee schoolId))
+    (h_id : s.school.id = schoolId)
+    : s.paymentStatus.enrollmentFeePaid = true := by ...
+
+-- 定理3: 期限内なら合格は維持される
+theorem pass_maintained_within_deadline
+    (h_pass : isActivePass state = true)
+    (h_within : today.day ≤ state.school.enrollmentFeeDeadline.day)
+    : (updateStatusOnDeadline state today).passStatus = PassStatus.Passed ∨ ... := by ...
 ```
 
-**この定理が保証すること:**
+**これらの定理が連鎖して保証すること:**
 
-「支払い可能」「今日が期限」「上位校に入学可能な合格がない」の3条件が成り立つとき、`shouldPayEnrollmentFee`関数は**必ず**`true`を返す。
+```
+1. deadline_forces_payment
+   → 期限日には支払い推奨が必ず出る
 
-つまり、「条件を満たしているのに支払い推奨を出し忘れる」というバグが**論理的に存在しない**ことが証明されています。
+2. applyRecommendedAction_enrollmentFee_correct
+   → 推奨に従えば支払いが正しく記録される
 
-**注意**: この定理は「前提条件が満たされれば結論が成り立つ」という形式です。前提条件（合格している、期限内、上位校に入学可能な合格がない等）が満たされない場合の動作は、この定理の対象外です。
+3. pass_maintained_within_deadline
+   → 支払い済みなら合格取り消しにならない
+```
+
+つまり、**「推奨に従っていれば合格取り消しにならない」** ことが数学的に証明されています。
+
+これはテストでは不可能な保証です。テストは有限個のケースしか確認できませんが、定理証明は**無限の入力パターン全て**に対して成り立つことを保証します。
 
 ## アーキテクチャ
 
 ```
-┌─────────────────┐     JSON-RPC      ┌─────────────────┐
-│  React Frontend │ ◄──────────────► │  Node.js API    │
-│  (TypeScript)   │                   │  Server         │
-└─────────────────┘                   └────────┬────────┘
-                                               │ stdio
-                                               ▼
-                                      ┌─────────────────┐
-                                      │  Lean4 REPL     │
-                                      │  (定理証明済み)  │
-                                      └─────────────────┘
+┌──────────────────────────────────────────────────┐
+│               Tauri Desktop App                  │
+│  ┌─────────────────┐      ┌─────────────────┐   │
+│  │  React Frontend │ ───► │  Rust Backend   │   │
+│  │  (TypeScript)   │ IPC  │  (Tauri)        │   │
+│  └─────────────────┘      └────────┬────────┘   │
+│                                    │ stdio      │
+│                           ┌────────▼────────┐   │
+│                           │  Lean4 REPL     │   │
+│                           │  (定理証明済み)  │   │
+│                           └─────────────────┘   │
+└──────────────────────────────────────────────────┘
 ```
 
+- **デスクトップアプリ**: Tauri v2（クロスプラットフォーム）
 - **フロントエンド**: React + TypeScript（UI表示）
-- **APIサーバー**: Node.js（JSON-RPC通信のプロキシ）
-- **バックエンド**: Lean4（支払い判断ロジック + 定理証明）
+- **ブリッジ**: Rust（Lean REPLプロセス管理 + IPC通信）
+- **ビジネスロジック**: Lean4（支払い判断 + 定理証明）
 
 ## クイックスタート
 
-Dockerがあれば、これだけで動きます:
+### デスクトップアプリ（推奨）
 
-```bash
-git clone https://github.com/jl1nie/school-payment.git
-cd school-payment
-docker compose up
-```
+[Releases](https://github.com/jl1nie/school-payment/releases)からインストーラーをダウンロードして実行します。
 
-ブラウザで http://localhost:5173 を開きます。
+- Windows: `.msi` または `.exe`
+- macOS: `.dmg`
+- Linux: `.AppImage` または `.deb`
 
-### ローカル開発（Docker不使用）
+### 開発環境
 
 <details>
 <summary>クリックして展開</summary>
@@ -125,22 +148,33 @@ docker compose up
 #### 前提条件
 
 - [elan](https://github.com/leanprover/elan)（Lean4バージョン管理）
+- [Rust](https://rustup.rs/)（Tauriビルド用）
 - Node.js 20+
-- [cargo-make](https://github.com/sagiegurari/cargo-make)（タスクランナー）
 
 #### セットアップと起動
 
 ```bash
-makers install  # 依存関係インストール
-makers dev      # 全サービス起動
+git clone https://github.com/jl1nie/school-payment.git
+cd school-payment
+
+# Leanバックエンドをビルド
+cd lean-backend && lake build && cd ..
+
+# フロントエンドの依存関係をインストール
+cd frontend && npm install && cd ..
+
+# Tauriアプリを開発モードで起動
+cd frontend && npm run tauri dev
 ```
 
 #### その他のコマンド
 
 ```bash
-makers build       # 全プロジェクトをビルド
-makers build-lean  # Leanのみビルド（証明の検証）
-makers            # 利用可能なタスク一覧
+# Leanのみビルド（証明の検証）
+cd lean-backend && lake build
+
+# プロダクションビルド（インストーラー生成）
+cd frontend && npm run tauri build
 ```
 
 </details>
@@ -148,17 +182,19 @@ makers            # 利用可能なタスク一覧
 ## 使い方
 
 1. **サンプルデータを読み込む**
-   - 「サンプル」ボタンをクリック（東大・早稲田・慶應・理科大の2025年度データ）
+   - 「サンプル」ボタンをクリック（東大・早稲田・慶應・明治・理科大の2026年度データ）
 
-2. **日付を設定する**
+2. **日付を選択する**
    - カレンダーで任意の日付をクリック
+   - 選択した日付から1週間分の推奨アクションが自動計算されます
 
-3. **推奨アクションを取得**
-   - 「1週間の推奨アクションを取得」ボタンをクリック
-
-4. **合格状況を更新**
-   - 各学校のカードで合格/不合格/取消を設定
+3. **合格状況を更新**
+   - 各学校のカードで合格/不合格を設定
    - 入学金・授業料の支払い状況もチェックボックスで管理
+
+4. **推奨アクションを確認**
+   - 1週間分の推奨アクションが日別に表示されます
+   - 緊急度に応じて色分け（赤: 本日期限、黄: 3日以内）
 
 ## 支払い判断ロジック
 

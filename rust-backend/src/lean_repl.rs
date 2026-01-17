@@ -9,6 +9,9 @@ use std::sync::mpsc::{self, Receiver, Sender};
 use std::thread;
 use std::time::Duration;
 
+#[cfg(windows)]
+use std::os::windows::process::CommandExt;
+
 use thiserror::Error;
 
 use crate::json_rpc::{JsonRpcRequest, JsonRpcResponse};
@@ -80,11 +83,20 @@ impl LeanRepl {
 
         tracing::info!("Starting Lean REPL: {:?}", self.advisor_path);
 
-        let mut process = Command::new(&self.advisor_path)
-            .arg("--repl")
+        let mut cmd = Command::new(&self.advisor_path);
+        cmd.arg("--repl")
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
+            .stderr(Stdio::piped());
+
+        // Hide console window on Windows
+        #[cfg(windows)]
+        {
+            const CREATE_NO_WINDOW: u32 = 0x08000000;
+            cmd.creation_flags(CREATE_NO_WINDOW);
+        }
+
+        let mut process = cmd
             .spawn()
             .map_err(|e| LeanReplError::StartFailed(e.to_string()))?;
 

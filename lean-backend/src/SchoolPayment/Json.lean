@@ -165,36 +165,9 @@ instance : FromJson PassStatus where
     | "cancelled" => return .Cancelled
     | _ => throw s!"Unknown pass status: {s}"
 
-/-! ## PaymentStatus の安全な構築 -/
+/-! ## PaymentStatus のパース -/
 
-/--
-  PaymentStatus を安全に構築するヘルパー関数
-
-  【問題】
-  PaymentStatus は「tuitionPaid = true → enrollmentFeePaid = true」
-  という証明付き制約を持つ。不正な入力（入学金未払いで授業料払い済み）
-  が来た場合、制約違反になる。
-
-  【解決策】
-  制約違反の場合は tuitionPaid を false に強制する。
-  これにより、不正な状態は構築されず、最も安全な状態にフォールバック。
-
-  【証明戦略】
-  tuitionPaid' の定義により、以下のケース分析で証明:
-  - enrollmentFeePaid = true の場合: tuitionPaid' = tuitionPaid で問題なし
-  - enrollmentFeePaid = false の場合: tuitionPaid' = false に強制されるので
-    tuitionPaid' = true という前提が偽になり、含意は自明に成立
--/
-def mkPaymentStatus (enrollmentFeePaid tuitionPaid : Bool) : PaymentStatus :=
-  -- 制約違反の場合は tuitionPaid を false に強制
-  let tuitionPaid' := if tuitionPaid && !enrollmentFeePaid then false else tuitionPaid
-  {
-    enrollmentFeePaid := enrollmentFeePaid
-    tuitionPaid := tuitionPaid'
-    tuitionRequiresEnrollment := by
-      intro h
-      cases enrollmentFeePaid <;> cases tuitionPaid <;> simp_all [tuitionPaid']
-  }
+-- mkPaymentStatus は Types.lean で定義
 
 /--
   PaymentStatus のパース
