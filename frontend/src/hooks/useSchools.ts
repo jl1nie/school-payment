@@ -17,7 +17,8 @@ export interface UseSchoolsReturn {
   getNextId: () => number;
   getNextPriority: () => number;
   exportData: () => string;
-  importData: (json: string) => boolean;
+  parseImportData: (json: string) => SchoolWithState[] | null;
+  setValidatedSchools: (schools: SchoolWithState[]) => void;
   loadSampleData: (sampleSchools: SchoolWithState[]) => void;
   isLoading: boolean;
 }
@@ -157,31 +158,37 @@ export function useSchools(
   }, [schools]);
 
   /**
-   * JSON文字列からデータをインポート
-   * @returns 成功したらtrue
+   * JSON文字列からデータをパース（バリデーションなし）
+   * Leanでのバリデーション後にsetSchoolsを呼ぶこと
+   * @returns パースされたデータ、またはnull
    */
-  const importData = useCallback((json: string): boolean => {
+  const parseImportData = useCallback((json: string): SchoolWithState[] | null => {
     try {
       const data = JSON.parse(json);
 
       // バージョン1のフォーマット
       if (data.version === 1 && Array.isArray(data.schools)) {
-        setSchools(data.schools);
-        return true;
+        return data.schools;
       }
 
       // 旧フォーマット（配列のみ）
       if (Array.isArray(data)) {
-        setSchools(data);
-        return true;
+        return data;
       }
 
       console.error("Invalid data format");
-      return false;
+      return null;
     } catch (e) {
-      console.error("Failed to import data:", e);
-      return false;
+      console.error("Failed to parse import data:", e);
+      return null;
     }
+  }, []);
+
+  /**
+   * バリデーション済みデータをセット
+   */
+  const setValidatedSchools = useCallback((schools: SchoolWithState[]) => {
+    setSchools(schools);
   }, []);
 
   /**
@@ -203,7 +210,8 @@ export function useSchools(
     getNextId,
     getNextPriority,
     exportData,
-    importData,
+    parseImportData,
+    setValidatedSchools,
     loadSampleData,
     isLoading,
   };

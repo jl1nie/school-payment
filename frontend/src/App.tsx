@@ -9,6 +9,7 @@ import { useRecommendation } from "@/hooks/useRecommendation";
 import { sampleSchools } from "@/data/sampleData";
 import { save, open } from "@tauri-apps/plugin-dialog";
 import { writeTextFile, readTextFile } from "@tauri-apps/plugin-fs";
+import { getRecommendation } from "@/api/client";
 import type { SchoolWithState } from "@/types";
 
 function App() {
@@ -26,7 +27,8 @@ function App() {
     getNextId,
     getNextPriority,
     exportData,
-    importData,
+    parseImportData,
+    setValidatedSchools,
     loadSampleData,
   } = useSchools();
 
@@ -85,7 +87,7 @@ function App() {
     }
   };
 
-  // データインポート
+  // データインポート（Leanでバリデーション、エラー時も読み込んで修正可能に）
   const handleImportClick = async () => {
     try {
       const filePath = await open({
@@ -95,10 +97,36 @@ function App() {
 
       if (filePath && typeof filePath === "string") {
         const json = await readTextFile(filePath);
-        if (importData(json)) {
-          alert("データをインポートしました");
-        } else {
+        const parsed = parseImportData(json);
+
+        if (!parsed) {
           alert("インポートに失敗しました。ファイル形式を確認してください。");
+          return;
+        }
+
+        if (parsed.length === 0) {
+          alert("インポートに失敗しました。学校データが空です。");
+          return;
+        }
+
+        // Lean APIでバリデーション
+        try {
+          await getRecommendation(parsed, today);
+          // バリデーション成功
+          setValidatedSchools(parsed);
+          alert(`${parsed.length}校のデータをインポートしました`);
+        } catch (validationError) {
+          // Leanからのエラーメッセージを表示しつつ、データは読み込む
+          const errorMsg = validationError instanceof Error
+            ? validationError.message
+            : String(validationError);
+
+          // データを読み込んでカードで修正できるようにする
+          setValidatedSchools(parsed);
+          alert(
+            `データを読み込みましたが、以下のエラーがあります:\n\n${errorMsg}\n\n` +
+            `カードを編集して修正してください。`
+          );
         }
       }
     } catch (e) {
