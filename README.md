@@ -22,6 +22,22 @@
 
 Lean4では、コードに対する**数学的証明**を書くことで、**あらゆる入力に対して正しく動作すること**を保証できます。
 
+### 📋 定理証明で保証されていること
+
+以下の性質がLean4の定理として証明済みです（`sorry`なし）：
+
+| 優先度 | 保証内容 | 定理名 |
+|:---:|--------|--------|
+| 🔴 | **期限日には必ず支払い推奨が出る**<br>入学金・授業料ともに、期限当日には必ず何らかの支払いが推奨される | `deadline_forces_payment`<br>`tuition_deadline_forces_payment` |
+| 🔴 | **支払い可能な合格校は見逃さない**<br>入学金期限内の合格校があれば、その期限日に必ず推奨が出る | `highest_viable_unpaid_recommended_on_deadline`<br>`tuition_payment_not_missed` |
+| 🟡 | **不要な入学金を払わない**<br>上位校に入学可能な合格がある場合、下位校の入学金は推奨されない | `recommendation_avoids_unnecessary_payment` |
+| 🟡 | **第1志望合格なら即座に推奨**<br>最上位校に合格したら、待機せず支払いを推奨 | `first_choice_immediate_payment` |
+| 🟡 | **入学金は授業料より先**<br>授業料支払いには入学金支払い済みが必須 | `enrollment_before_tuition` |
+| 🟢 | **推奨は常に実行可能**<br>推奨された支払いは、必ず支払い可能な状態である | `shouldPayEnrollmentFee_implies_canPay`<br>`shouldPayTuition_implies_canPay` |
+| 🟢 | **アクション適用後も整合性を維持**<br>支払い実行後も、学校情報・合格状態は保存される | `applyRecommendedAction_*_preserves_*` |
+
+> 🔴 致命的なミスを防ぐ / 🟡 最適性を保証 / 🟢 システムの健全性を保証
+
 <details>
 <summary>詳細: 形式検証の仕組み</summary>
 
